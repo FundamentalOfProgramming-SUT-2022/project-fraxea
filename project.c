@@ -3,12 +3,9 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#define _len_ 1000
-
 void switchCommand();
-void createFile(char *);
-int fnd(char *, int *);
-void ssc(char *, char *, int );
+int createFile(char *);
+int stillRemaining(char *, char , char *, int *, int *);
 
 int main() {
     while (1) switchCommand();
@@ -16,15 +13,19 @@ int main() {
 }
 
 void switchCommand() {
-    char *cm_l = malloc(_len_);
-    char *command_name = malloc(_len_);
-    fgets(cm_l, _len_ , stdin);
-    sscanf(cm_l, "%s", command_name);
-    if (!strcmp(command_name, "createfile")) {
-        createFile(cm_l);
+    static unsigned long size = 1000;
+    char *line = (char *) malloc(size);
+    getline(&line, &size, stdin);
+    // if filename == "createfile --file "
+    char *l1 = (char *) malloc(size);
+    sscanf(line, "%s", l1);
+    if (strcmp(l1, "createfile") == 0) {
+        if(!createFile(line)) printf("invalid command\n");
     }
-
+    /*else if ...*/
     else printf("invalid command\n");
+    free(line);
+    free(l1);
     /*
     creatfile
     insertstr
@@ -50,52 +51,35 @@ If it is not possible can you prove that? Thanks.
     */
 }
 
-void createFile(char *cm_l) {
-    cm_l += strlen("createfile") + 1;
-    char *cm_p = malloc(_len_);
-    sscanf(cm_l, "%s", cm_p);
-    if (strcmp(cm_p, "–file")) {
-        printf("invalid command\n");
-        return;
-    }
-    cm_l += strlen("–file /");
-    int i = strlen("root"), space = 0;
-    if (*cm_l == '"') {
-        cm_l++;
-        space = 1;
-    }
-    while (fnd(cm_l, &i)) {
-        ssc(cm_l, cm_p, i);
-        mkdir(cm_p, 0777);
-    }
-    if (space) {
-        if (*(cm_l + i) == '\n') i--;
-        else { 
-            printf("invalid command\n");
-            return;
-        }
-    }
-    struct stat c;
-    FILE *a;
-    ssc(cm_l, cm_p, i);
-    if (stat(cm_p, &c) == 0) printf("The file is already exist!\n");
-    a = fopen(cm_p, "w");
-    fclose(a);
+int createFile(char *line) {
+    int l = strlen("createfile --file "), i = 0;
+    char *path = (char *) malloc(sizeof(char) * 1000);
+    char terminal = '\n', c;
+    // check the space
+    c = line[l++];
+    if (c == '"') {
+        l++;
+        terminal = '"';
+    } // else c = '/'
+    while (stillRemaining(line, terminal, path, &i, &l)) // make directories
+        mkdir(path, 0777);
+    // create file if new
+    FILE *fp = fopen(path, "r");
+    if (fp != NULL) printf("File exist!\n");
+    else fp = fopen(path, "a");
+    fclose(fp);
+    return 1;
 }
 
-int fnd(char *cm_l, int *i) {
-    (*i)++;
+int stillRemaining(char *line, char terminal, char *path, int *i, int *l) {
+    char c;
     while (1) {
-        if (*(cm_l + *i) == '/') return 1;
-        if (*(cm_l + *i) == '\n') return 0;
+        c = line[*l];
+        (*l)++;
+        if (c == terminal) return 0;
+        path[*i] = c;
         (*i)++;
-    }
-    return 0;
-}
-
-void ssc(char *reference, char *target, int index) {
-    for (int i = 0; i < index; i++) {
-        *(target + i) = *(reference + i);
+        if (c == '/') return 1;
     }
 }
 
