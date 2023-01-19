@@ -3,9 +3,12 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#define SIZE 1000
+
 void switchCommand();
 int createFile(char *);
 int stillRemaining(char *, char , char *, int *, int *);
+int cat(char *);
 
 int main() {
     while (1) switchCommand();
@@ -13,7 +16,7 @@ int main() {
 }
 
 void switchCommand() {
-    static unsigned long size = 1000;
+    static unsigned long size = SIZE;
     char *line = (char *) malloc(size);
     getline(&line, &size, stdin);
     // if filename == "createfile --file "
@@ -21,6 +24,9 @@ void switchCommand() {
     sscanf(line, "%s", l1);
     if (strcmp(l1, "createfile") == 0) {
         if(!createFile(line)) printf("invalid command\n");
+    }
+    else if (strcmp(l1, "cat") == 0) {
+        if(!cat(line)) printf("invalid command\n");
     }
     /*else if ...*/
     else printf("invalid command\n");
@@ -53,7 +59,7 @@ If it is not possible can you prove that? Thanks.
 
 int createFile(char *line) {
     int l = strlen("createfile --file "), i = 0;
-    char *path = (char *) malloc(sizeof(char) * 1000);
+    char *path = (char *) malloc(SIZE);
     char terminal = '\n', c;
     // check the space
     c = line[l++];
@@ -83,3 +89,29 @@ int stillRemaining(char *line, char terminal, char *path, int *i, int *l) {
     }
 }
 
+int cat(char *line) {
+    int l = strlen("cat --file ");
+    int i = 0;
+    char *path = (char *) malloc(SIZE);
+    char *str = (char *) malloc(SIZE);
+    char terminal = '\n', c;
+    // check the space
+    c = line[l++];
+    if (c == '"') {
+        l++;
+        terminal = '"';
+    } // else c = '/'
+    while (stillRemaining(line, terminal, path, &i, &l));
+
+    FILE *fp = fopen(path, "r");
+    for (int i = 0; i < SIZE; i++) {
+        c = getc(fp);
+        if (c == EOF) break;
+        str[i] = c;
+    }
+    printf("%s", str);
+    fclose(fp);
+    free(str);
+    free(path);
+    return 1;
+}
