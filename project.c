@@ -16,6 +16,8 @@ int contentFile(char *, char **);
 void writeInFile(char *, char *);
 void writeMiddleString(char **, char *, int);
 void findPath(char *, char *, int *, int *, char);
+void removestr(char *);
+int removeMiddleString(char **, char, int, int);
 
 int main() {
     while (1) switchCommand();
@@ -25,22 +27,22 @@ int main() {
 void switchCommand() {
     static unsigned long size = SIZE;
     char *line = (char *) malloc(size);
-    getline(&line, &size, stdin);
-    // if filename == "createfile --file "
     char *l1 = (char *) malloc(size);
+    getline(&line, &size, stdin);
     sscanf(line, "%s", l1);
     if (strcmp(l1, "createfile") == 0) createFile(line);
     else if (strcmp(l1, "cat") == 0) cat(line);
     else if (strcmp(l1, "insertstr") == 0) insertstr(line);
+    else if (strcmp(l1, "removestr") == 0) removestr(line);
     /*else if ...*/
     else printf("invalid command\n");
     free(line);
     free(l1);
     /*
-    creatfile
-    insertstr
-    cat
-    removestr
+    √ creatfile
+    √ insertstr
+    √ cat
+    √ removestr
     copystr
     pastetr
     find
@@ -50,14 +52,7 @@ void switchCommand() {
     auto
     compare
     tree
-
-
-    How can I compare two strings without for loop in C/C++?
-
-
-    I think I can do that with pointer. I am looking for an algorithm with O(1), hence I am not going to use functions in libraries(like strcmp in string.h). Is that possible at all?
-
-If it is not possible can you prove that? Thanks.
+    armin
     */
 }
 
@@ -208,4 +203,36 @@ void findPath(char *line, char *path, int *i, int *l, char t) {
         terminal = '"';
     } // else c = '/'
     while (stillRemaining(line, terminal, path, i, l));
+}
+
+void removestr(char *line) {
+    int l = strlen("removestr --file ");
+    char *str = (char *) malloc(SIZE);
+    char *path = (char *) malloc(SIZE);
+    char t = ' ';
+    int _line, _char, size, i = 0;
+    findPath(line, path, &i, &l, t);
+    if (contentFile(path, &str)) return;
+    line += l + strlen(" --pos");
+    sscanf(line, "%i:%i -size %i -%c", &_line, &_char, &size, &t); // find position
+    i = findPosition(_line, _char, str);
+    if (i == -1) return;
+    if (removeMiddleString(&str, t, i, size)) printf("Too many characters to remove!\n");
+    writeInFile(path, str);
+    free(path); free(str);
+}
+
+int removeMiddleString(char **str, char t, int i, int size) {
+    char *tail = (char *) malloc(SIZE);
+    if (t == 'b' && i < size) return 1;
+    if (t == 'f' && strlen(*str) <= i + size) return 1;
+    if (t == 'f') i += size;
+    for (int j = 0; ; j++) {
+        tail[j] = (*str)[i + j];
+        if (tail[j] == '\0') break;
+    }
+    (*str)[i - size] = '\0';
+    strcat(*str, tail);
+    free(tail);
+    return 0;
 }
