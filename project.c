@@ -168,7 +168,8 @@ int contentFile(char *path, char **str) {
         fclose(fp);
         return 1;
     }
-    for (int i = 0; i < SIZE; i++) {
+    for (int i = 0; ; i++) {
+        if (i == strlen(*str)) *str = realloc(*str, strlen(*str) + SIZE);
         c = getc(fp);
         if (c == EOF) break;
         (*str)[i] = c;
@@ -238,6 +239,7 @@ int removeMiddleString(char **str, char t, int i, int size) {
     if (t == 'f' && strlen(*str) < i + size) return 1;
     if (t == 'f') i += size;
     for (int j = 0; ; j++) {
+        if (j == strlen(*str)) *str = realloc(*str, strlen(*str) + SIZE);
         tail[j] = (*str)[i + j];
         if (tail[j] == '\0') break;
     }
