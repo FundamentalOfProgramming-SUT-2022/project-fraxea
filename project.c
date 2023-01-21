@@ -21,6 +21,8 @@ int removeMiddleString(char **, char, int, int);
 void copystr(char *);
 int readMiddleString(char **, char, int, int, char **);
 void cutstr(char *);
+void pastestr(char *);
+int readClipboard(char **);
 
 int main() {
     while (1) switchCommand();
@@ -39,6 +41,7 @@ void switchCommand() {
     else if (strcmp(l1, "removestr") == 0) removestr(line);
     else if (strcmp(l1, "copystr") == 0) copystr(line);
     else if (strcmp(l1, "cutstr") == 0) cutstr(line);
+    else if (strcmp(l1, "pastestr") == 0) pastestr(line);
     /*else if ...*/
     else printf("invalid command\n");
     free(line);
@@ -50,7 +53,7 @@ void switchCommand() {
     √ removestr
     √ copystr
     √ cutstr
-    pastetr
+    √ pastetr
     find
     replace
     grep
@@ -303,6 +306,43 @@ void cutstr(char *line) {
         printf("Too many characters to cut!\n");
     writeInFile("clipboard", s);
     removeMiddleString(&str, t, i, size);
+    writeInFile(path, str);
     free(path); free(str); free(s);
+}
+
+void pastestr(char *line) {
+    int l = strlen("pastestr --file ");
+    char *path = (char *) malloc(SIZE); // address of file
+    char *str = (char *) malloc(SIZE); // content of file
+    char *s = (char *) malloc(SIZE); // string to insert
+    int _line, _char, i = 0;
+    if (readClipboard(&s)) return;
+    if (findPath(line, path, &i, &l, ' ')) return;
+    if (contentFile(path, &str)) return;
+    line += l + strlen("--pos ");
+    sscanf(line, "%i:%i", &_line, &_char); // find position
+    i = findPosition(_line, _char, str);
+    if (i == -1) return;
+    writeMiddleString(&str, s, i);
+    writeInFile(path, str);
+    free(path); free(str); free(s);
+}
+
+int readClipboard(char **str) {
+    FILE *fp = fopen("clipboard", "r");
+    char c;
+    if (fp == NULL) {
+        printf("The clipboard is empty!\n");
+        fclose(fp);
+        return 1;
+    }
+    for (int i = 0; ; i++) {
+        if (i == strlen(*str)) *str = realloc(*str, strlen(*str) + SIZE);
+        c = getc(fp);
+        if (c == EOF) break;
+        (*str)[i] = c;
+    }
+    fclose(fp);
+    return 0;
 }
 
