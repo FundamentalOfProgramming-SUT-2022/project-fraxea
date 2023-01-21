@@ -18,6 +18,8 @@ void writeMiddleString(char **, char *, int);
 int findPath(char *, char *, int *, int *, char);
 void removestr(char *);
 int removeMiddleString(char **, char, int, int);
+void copystr(char *);
+int readMiddleString(char **, char, int, int, char **);
 
 int main() {
     while (1) switchCommand();
@@ -34,6 +36,7 @@ void switchCommand() {
     else if (strcmp(l1, "cat") == 0) cat(line);
     else if (strcmp(l1, "insertstr") == 0) insertstr(line);
     else if (strcmp(l1, "removestr") == 0) removestr(line);
+    else if (strcmp(l1, "copystr") == 0) copystr(line);
     /*else if ...*/
     else printf("invalid command\n");
     free(line);
@@ -43,7 +46,7 @@ void switchCommand() {
     √ insertstr
     √ cat
     √ removestr
-    copystr
+    √ copystr
     pastetr
     find
     replace
@@ -187,6 +190,7 @@ void writeInFile(char *path, char *str) {
 void writeMiddleString(char **str, char *s, int i) {
     char *tail = (char *) malloc(SIZE);
     for (int j = 0; ; j++) {
+        if (j == strlen(tail)) tail = realloc(tail, strlen(tail) + SIZE);
         tail[j] = (*str)[i + j];
         if (tail[j] == '\0') break;
     }
@@ -239,7 +243,7 @@ int removeMiddleString(char **str, char t, int i, int size) {
     if (t == 'f' && strlen(*str) < i + size) return 1;
     if (t == 'f') i += size;
     for (int j = 0; ; j++) {
-        if (j == strlen(*str)) *str = realloc(*str, strlen(*str) + SIZE);
+        if (j == strlen(tail)) tail = realloc(tail, strlen(tail) + SIZE);
         tail[j] = (*str)[i + j];
         if (tail[j] == '\0') break;
     }
@@ -248,3 +252,34 @@ int removeMiddleString(char **str, char t, int i, int size) {
     free(tail);
     return 0;
 }
+
+void copystr(char *line) {
+    int l = strlen("copystr --file ");
+    char *path = (char *) malloc(SIZE); // address of file
+    char *str = (char *) malloc(SIZE); // content of file
+    char *s = (char *) malloc(SIZE); // string to insert
+    char t;
+    int size, _line, _char, i = 0;
+    if (findPath(line, path, &i, &l, ' ')) return;
+    if (contentFile(path, &str)) return;
+    line += l + strlen("--pos ");
+    sscanf(line, "%i:%i -size %i -%c", &_line, &_char, &size, &t); // find position
+    i = findPosition(_line, _char, str);
+    if (i == -1) return;
+    if (readMiddleString(&str, t, i, size, &s))
+        printf("Too many characters to copy!\n");
+    writeInFile("clipboard", s);
+    free(path); free(str); free(s);
+}
+
+int readMiddleString(char **str, char t, int i, int size, char **s) {
+    if (t == 'b' && i < size) return 1;
+    if (t == 'f' && strlen(*str) < i + size) return 1;
+    if (t == 'b') i -= size;
+    for (int j = 0; j < size; j++) {
+        if (j == strlen(*s)) *s = realloc(*s, strlen(*s) + SIZE);
+        (*s)[j] = (*str)[i + j];
+    }
+    return 0;
+}
+
