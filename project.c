@@ -20,6 +20,7 @@ void removestr(char *);
 int removeMiddleString(char **, char, int, int);
 void copystr(char *);
 int readMiddleString(char **, char, int, int, char **);
+void cutstr(char *);
 
 int main() {
     while (1) switchCommand();
@@ -37,6 +38,7 @@ void switchCommand() {
     else if (strcmp(l1, "insertstr") == 0) insertstr(line);
     else if (strcmp(l1, "removestr") == 0) removestr(line);
     else if (strcmp(l1, "copystr") == 0) copystr(line);
+    else if (strcmp(l1, "cutstr") == 0) cutstr(line);
     /*else if ...*/
     else printf("invalid command\n");
     free(line);
@@ -47,6 +49,7 @@ void switchCommand() {
     √ cat
     √ removestr
     √ copystr
+    √ cutstr
     pastetr
     find
     replace
@@ -281,5 +284,25 @@ int readMiddleString(char **str, char t, int i, int size, char **s) {
         (*s)[j] = (*str)[i + j];
     }
     return 0;
+}
+
+void cutstr(char *line) {
+    int l = strlen("cutstr --file ");
+    char *path = (char *) malloc(SIZE); // address of file
+    char *str = (char *) malloc(SIZE); // content of file
+    char *s = (char *) malloc(SIZE); // string to insert
+    char t;
+    int size, _line, _char, i = 0;
+    if (findPath(line, path, &i, &l, ' ')) return;
+    if (contentFile(path, &str)) return;
+    line += l + strlen("--pos ");
+    sscanf(line, "%i:%i -size %i -%c", &_line, &_char, &size, &t); // find position
+    i = findPosition(_line, _char, str);
+    if (i == -1) return;
+    if (readMiddleString(&str, t, i, size, &s))
+        printf("Too many characters to cut!\n");
+    writeInFile("clipboard", s);
+    removeMiddleString(&str, t, i, size);
+    free(path); free(str); free(s);
 }
 
