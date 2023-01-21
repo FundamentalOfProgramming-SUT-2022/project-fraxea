@@ -15,7 +15,7 @@ int findPosition(int, int, char *);
 int contentFile(char *, char **);
 void writeInFile(char *, char *);
 void writeMiddleString(char **, char *, int);
-void findPath(char *, char *, int *, int *, char);
+int findPath(char *, char *, int *, int *, char);
 void removestr(char *);
 int removeMiddleString(char **, char, int, int);
 
@@ -94,7 +94,7 @@ void cat(char *line) {
     char *path = (char *) malloc(SIZE); // address of file
     char *str = (char *) malloc(SIZE); // content of file
     printf("%s", path);
-    findPath(line, path, &i, &l, '\n');
+    if (findPath(line, path, &i, &l, '\n')) return;
     if (contentFile(path, &str)) return;
     printf("%s", str);
     free(str); free(path);
@@ -125,7 +125,7 @@ void insertstr(char *line) {
     char *str = (char *) malloc(SIZE); // content of file
     char *s = (char *) malloc(SIZE); // string to insert
     int _line, _char, i = 0;
-    findPath(line, path, &i, &l, ' ');
+    if (findPath(line, path, &i, &l, ' ')) return;
     if (contentFile(path, &str)) return;
     line += l + strlen("--str ");
     l = 0; // lenght of the string for insert
@@ -195,14 +195,24 @@ void writeMiddleString(char **str, char *s, int i) {
     free(tail);
 }
 
-void findPath(char *line, char *path, int *i, int *l, char t) {
+int findPath(char *line, char *path, int *i, int *l, char t) {
     char terminal = t;
     char c = line[(*l)++]; // check the space
     if (c == '"') {
         (*l)++;
         terminal = '"';
     } // else c = '/'
-    while (stillRemaining(line, terminal, path, i, l));
+    FILE *fp;
+    while (stillRemaining(line, terminal, path, i, l)) {
+        fp = fopen(path, "r");
+        if (fp == NULL && line[*l + 1] != '/') {
+            printf("Directory doesn't exist!\n");
+            fclose(fp);
+            return 1;
+        }
+    }
+    fclose(fp);
+    return 0;
 }
 
 void removestr(char *line) {
@@ -211,7 +221,7 @@ void removestr(char *line) {
     char *path = (char *) malloc(SIZE);
     char t = ' ';
     int _line, _char, size, i = 0;
-    findPath(line, path, &i, &l, t);
+    if (findPath(line, path, &i, &l, t)) return;
     if (contentFile(path, &str)) return;
     line += l + strlen(" --pos");
     sscanf(line, "%i:%i -size %i -%c", &_line, &_char, &size, &t); // find position
@@ -225,7 +235,7 @@ void removestr(char *line) {
 int removeMiddleString(char **str, char t, int i, int size) {
     char *tail = (char *) malloc(SIZE);
     if (t == 'b' && i < size) return 1;
-    if (t == 'f' && strlen(*str) <= i + size) return 1;
+    if (t == 'f' && strlen(*str) < i + size) return 1;
     if (t == 'f') i += size;
     for (int j = 0; ; j++) {
         tail[j] = (*str)[i + j];
