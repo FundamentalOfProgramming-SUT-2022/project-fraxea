@@ -23,6 +23,9 @@ int readMiddleString(char **, char, int, int, char **);
 void cutstr(char *);
 void pastestr(char *);
 int readClipboard(char **);
+int isNew(int **, int);
+int searchString(char *, int, char *, int, char *);
+int countString(char *, int, char *, int, char *, int **, int *, int);
 
 int main() {
     while (1) switchCommand();
@@ -346,3 +349,60 @@ int readClipboard(char **str) {
     return 0;
 }
 
+int isNew(int **s_s, int cnt) {
+    for (int i = 0; i < cnt; i++) {
+        if ((s_s[i][0] == s_s[cnt][0]) && (s_s[i][1] == s_s[cnt][1])) return 0;
+    }
+    return 1;
+}
+
+int searchString(char *str, int i, char *s, int j, char *star_s) {
+    if (s[j] == '\0') return 1;
+    if (i > strlen(str)) return -1;
+    if (star_s[j] == ' ') {
+        if (str[i] == s[j]) {
+            if (searchString(str, i + 1, s, j + 1, star_s) > -1) return i;
+        }
+        if (j) return -1;
+        return searchString(str, i + 1, s, 0, star_s);
+    }
+    int k; // else star_s[j] = '*'
+    for (k = 0; (str[i + k] != '\0') && (str[i + k] != '\n') && (str[i + k] != ' '); k++);
+    for (int m = k; m > -1; m--) {
+        if (searchString(str, i + m, s, j + 1, star_s) > -1) return i;
+    }
+    if (j) return -1;
+    if (k) return searchString(str, i + k, s, 0, star_s);
+    return searchString(str, i + 1, s, 0, star_s);
+}
+
+int countString(char *str, int i, char *s, int j, char *star_s, int **s_s, int *cnt, int len) {
+    if (s[j] == '\0') {
+        s_s[*cnt] =  (int *) malloc(2 * sizeof(int));
+        s_s[*cnt][1] = i;
+        return 1;
+    }
+    if (i > strlen(str)) return -1;
+    if (star_s[j] == ' ') {
+        if (str[i] == s[j]) {
+            if (countString(str, i + 1, s, j + 1, star_s, s_s, cnt, len + 1) > -1) {
+                if (j) return 1;
+                s_s[*cnt][0] = i;
+                if (isNew(s_s, *cnt)) (*cnt)++;
+            }
+        }
+        if (j) return -1;
+        return countString(str, i + 1, s, 0, star_s, s_s, cnt, 0);
+    }
+    int k; // else star_s[j] = '*'
+    for (k = 0; (str[i + k] != '\0') && (str[i + k] != '\n') && (str[i + k] != ' '); k++);
+    for (int m = k; m > -1; m--) {
+        if (countString(str, i + m, s, j + 1, star_s, s_s, cnt, len + m) > -1) {
+            s_s[*cnt][0] = i - len;
+            if (isNew(s_s, *cnt)) (*cnt)++;
+        }
+    }
+    if (j) return -1;
+    if (k) return countString(str, i + k, s, 0, star_s, s_s, cnt, 0);
+    return countString(str, i + 1, s, 0, star_s, s_s, cnt, 0);
+}
