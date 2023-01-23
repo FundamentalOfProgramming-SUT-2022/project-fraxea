@@ -26,6 +26,8 @@ int readClipboard(char **);
 int isNew(int **, int);
 int searchString(char *, int, char *, int, char *);
 int countString(char *, int, char *, int, char *, int **, int *, int);
+char* Dastkary2(char *, char, int, int *, char *);
+void find(char *);
 
 int main() {
     while (1) switchCommand();
@@ -45,6 +47,7 @@ void switchCommand() {
     else if (strcmp(l1, "copystr") == 0) copystr(line);
     else if (strcmp(l1, "cutstr") == 0) cutstr(line);
     else if (strcmp(l1, "pastestr") == 0) pastestr(line);
+    else if (strcmp(l1, "find") == 0) find(line);
     /*else if ...*/
     else printf("invalid command\n");
     free(line);
@@ -93,7 +96,7 @@ int stillRemaining(char *line, char terminal, char *path, int *i, int *l) {
     while (1) {
         c = line[*l];
         (*l)++;
-        if (c == terminal) return 0;
+        if (c == terminal || c == '\n') return 0;
         path[*i] = c;
         (*i)++;
         if (c == '/') return 1;
@@ -405,4 +408,51 @@ int countString(char *str, int i, char *s, int j, char *star_s, int **s_s, int *
     if (j) return -1;
     if (k) return countString(str, i + k, s, 0, star_s, s_s, cnt, 0);
     return countString(str, i + 1, s, 0, star_s, s_s, cnt, 0);
+}
+
+char* Dastkary2(char *str, char terminal, int space, int *i, char *star_s) {
+    char *dstr = (char *) malloc(SIZE);
+    int j = 0;
+    for (int a = 0; ; (*i)++) {
+        if (a) {
+            if (str[*i] == 'n') dstr[j++] = '\n';
+            else dstr[j++] = str[*i];
+            star_s[j - 1] = ' ';
+            a = 0;
+        }
+        else if (str[*i] == terminal) {
+            if (space && a) dstr[j++] = str[*i];
+            else {
+                if (terminal == '"') (*i)++;
+                break;
+            }
+        }
+        else if (str[*i] == '\\') a = 1;
+        else {
+            dstr[j++] = str[*i];
+            if (str[*i] == '*') star_s[j - 1] = '*';
+            else star_s[j - 1] = ' ';
+        }
+    }
+    return dstr;
+}
+
+void find(char *line) {
+    int l;
+    char *path = (char *) malloc(SIZE); // address of file
+    char *str = (char *) malloc(SIZE); // content of file
+    char *s = (char *) malloc(SIZE); // string to find
+    char *star_s = (char *) malloc(SIZE); // wildcard
+    int i = 0;
+    line += strlen("find --str ");
+    l = 0; // lenght of string for finding
+    if (*line == '"') s = Dastkary2(++line, '"', 1, &l, star_s);
+    else s = Dastkary2(line, ' ', 0, &l, star_s);
+    line += l + strlen(" --file ");
+    l = 0;
+    if (findPath(line, path, &i, &l, ' ')) return;
+    if (contentFile(path, &str)) return;
+    i = searchString(str, 0, s, 0, star_s); // normall one
+    printf("%i\n", i);
+    free(path); free(str); free(s); free(star_s);
 }
