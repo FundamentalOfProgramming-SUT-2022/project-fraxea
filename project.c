@@ -1,14 +1,9 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-
-#define SIZE 1000
+#include "errors.h"
 
 void switchCommand();
 void createFile(char *);
 int stillRemaining(char *, char, char *, int *, int *);
-void cat(char *);
+void cat(char **, char **);
 char* Dastkary(char *, char, int, int *);
 void insertstr(char *);
 int findPosition(int, int, char *);
@@ -38,54 +33,54 @@ void switchCommand() {
     static unsigned long size = SIZE;
     char *line = (char *) malloc(size);
     char *l1 = (char *) malloc(size);
+    char *output = (char *) malloc(size);
     getline(&line, &size, stdin);
     sscanf(line, "%s", l1);
-    if (strcmp(l1, "createfile") == 0) createFile(line);
-    else if (strcmp(l1, "cat") == 0) cat(line);
-    else if (strcmp(l1, "insertstr") == 0) insertstr(line);
-    else if (strcmp(l1, "removestr") == 0) removestr(line);
-    else if (strcmp(l1, "copystr") == 0) copystr(line);
-    else if (strcmp(l1, "cutstr") == 0) cutstr(line);
-    else if (strcmp(l1, "pastestr") == 0) pastestr(line);
-    else if (strcmp(l1, "find") == 0) find(line);
-    /*else if ...*/
-    else printf("invalid command\n");
-    free(line);
-    free(l1);
-    /*
-    √ creatfile
-    √ insertstr
-    √ cat
-    √ removestr
-    √ copystr
-    √ cutstr
-    √ pastetr
-    find
-    replace
-    grep
-    undo
-    auto
-    compare
-    tree
-    armin
+    /*while (line[0] != '\0')*/
+        if (!strcmp(l1, "createfile")) createFile(line);
+        else if (!strcmp(l1, "cat")) cat(line, &output, &l);
+        else if (!strcmp(l1, "insertstr")) insertstr(line);
+        else if (!strcmp(l1, "removestr")) removestr(line);
+        else if (!strcmp(l1, "copystr")) copystr(line);
+        else if (!strcmp(l1, "cutstr")) cutstr(line);
+        else if (!strcmp(l1, "pastestr")) pastestr(line);
+        else if (!strcmp(l1, "find")) find(line);
+        /*else if ...*/
+        else error4();
+    printOutPut(output);
+    free(l1); free(line);
+    /* input $  output # neither -
+    √ creatfile -
+    √ insertstr $
+    √ cat #
+    √ removestr -
+    √ copystr -
+    √ cutstr -
+    √ pastetr -
+    find $ #
+    replace $
+    grep $ #
+    undo -
+    auto -
+    compare #
+    tree #
+    !!!armqn
     */
 }
 
 void createFile(char *line) {
     int l = strlen("createfile --file "), i = 0;
     char *path = (char *) malloc(SIZE);
-    char terminal = '\n', c;
-    // check the space
-    c = line[l++];
+    char terminal = '\n';
+    char c = line[l++]; // check the space
     if (c == '"') {
         l++;
         terminal = '"';
     } // else c = '/'
-    while (stillRemaining(line, terminal, path, &i, &l)) // make directories
-        mkdir(path, 0777);
-    // create file if new
-    FILE *fp = fopen(path, "r");
-    if (fp != NULL) printf("File exist!\n");
+    while (stillRemaining(line, terminal, path, &i, &l))
+        mkdir(path, 0777); // make directories
+    FILE *fp = fopen(path, "r"); // create file if new
+    if (fp != NULL) error1();
     else fp = fopen(path, "a");
     fclose(fp);
     free(path);
@@ -94,29 +89,23 @@ void createFile(char *line) {
 int stillRemaining(char *line, char terminal, char *path, int *i, int *l) {
     char c;
     while (1) {
-        c = line[*l];
-        (*l)++;
+        c = line[(*l)++];
         if (c == terminal || c == '\n') return 0;
-        path[*i] = c;
-        (*i)++;
+        path[(*i)++] = c;
         if (c == '/') return 1;
     }
 }
 
-void cat(char *line) {
-    int l = strlen("cat --file ");
-    int i = 0;
-    char *path = (char *) malloc(SIZE); // address of file
-    char *str = (char *) malloc(SIZE); // content of file
-    printf("%s", path);
-    if (findPath(line, path, &i, &l, '\n')) return;
-    if (contentFile(path, &str)) return;
-    printf("%s", str);
-    free(str); free(path);
+void cat(char **line, char **str) {
+    int l = strlen("cat --file "), i = 0;
+    char path[SIZE]; // address of file
+    if (findPath(*line, path, &i, &l, '\n')) return;
+    if (contentFile(path, str)) return;
+    *line += l;
 }
 
 char* Dastkary(char *str, char terminal, int space, int *i) {
-    char *dstr = (char *) malloc(SIZE);
+    char dstr[SIZE];
     int j = 0;
     for (int a = 0; ; (*i)++) {
         if (a) {
@@ -179,7 +168,7 @@ int contentFile(char *path, char **str) {
     FILE *fp = fopen(path, "r");
     char c;
     if (fp == NULL) {
-        printf("File doesn't exist!\n");
+        error3();
         fclose(fp);
         return 1;
     }
@@ -223,7 +212,7 @@ int findPath(char *line, char *path, int *i, int *l, char t) {
     while (stillRemaining(line, terminal, path, i, l)) {
         fp = fopen(path, "r");
         if (fp == NULL && line[*l + 1] != '/') {
-            printf("Directory doesn't exist!\n");
+            error2();
             fclose(fp);
             return 1;
         }
