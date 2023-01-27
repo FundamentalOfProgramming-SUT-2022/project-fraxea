@@ -1,8 +1,9 @@
 #include "errors.h"
 
-void switchCommand();
-void createFile(char *);
-int stillRemaining(char *, char, char *, int *, int *);
+void readCommandLine();
+void switchCommand(char **, char **, char *);
+void createFile(char **);
+int stillRemaining(char **, char, char *);
 void cat(char **, char **);
 char* Dastkary(char *, char, int, int *);
 void insertstr(char *);
@@ -10,7 +11,7 @@ int findPosition(int, int, char *);
 int contentFile(char *, char **);
 void writeInFile(char *, char *);
 void writeMiddleString(char **, char *, int);
-int findPath(char *, char *, int *, int *, char);
+int findPath(char **, char *, char);
 void removestr(char *);
 int removeMiddleString(char **, char, int, int);
 void copystr(char *);
@@ -25,30 +26,34 @@ char* Dastkary2(char *, char, int, int *, char *);
 void find(char *);
 
 int main() {
-    while (1) switchCommand();
+    while (1) readCommandLine();
     return 0;
 }
 
-void switchCommand() {
+void readCommandLine() {
     static unsigned long size = SIZE;
     char *line = (char *) malloc(size);
-    char *l1 = (char *) malloc(size);
     char *output = (char *) malloc(size);
+    char *c_n = (char *) malloc(size);
     getline(&line, &size, stdin);
-    sscanf(line, "%s", l1);
+    sscanf(line, "%s", c_n);
+    switchCommand(&line, &output, c_n);
+    free(output); free(c_n);
+}
+
+void switchCommand(char **line, char **output, char *c_n) {
     /*while (line[0] != '\0')*/
-        if (!strcmp(l1, "createfile")) createFile(line);
-        else if (!strcmp(l1, "cat")) cat(line, &output, &l);
-        else if (!strcmp(l1, "insertstr")) insertstr(line);
-        else if (!strcmp(l1, "removestr")) removestr(line);
-        else if (!strcmp(l1, "copystr")) copystr(line);
-        else if (!strcmp(l1, "cutstr")) cutstr(line);
-        else if (!strcmp(l1, "pastestr")) pastestr(line);
-        else if (!strcmp(l1, "find")) find(line);
+        if (!strcmp(c_n, "createfile")) createFile(line);
+        else if (!strcmp(c_n, "cat")) cat(line, output);
+        // else if (!strcmp(c_n, "insertstr")) insertstr(line);
+        // else if (!strcmp(c_n, "removestr")) removestr(line);
+        // else if (!strcmp(c_n, "copystr")) copystr(line);
+        // else if (!strcmp(c_n, "cutstr")) cutstr(line);
+        // else if (!strcmp(c_n, "pastestr")) pastestr(line);
+        // else if (!strcmp(c_n, "find")) find(line);
         /*else if ...*/
         else error4();
-    printOutPut(output);
-    free(l1); free(line);
+    printOutPut(*output);
     /* input $  output # neither -
     √ creatfile -
     √ insertstr $
@@ -68,42 +73,38 @@ void switchCommand() {
     */
 }
 
-void createFile(char *line) {
-    int l = strlen("createfile --file "), i = 0;
+void createFile(char **line) {
+    *line += strlen("createfile --file /");
     char *path = (char *) malloc(SIZE);
     char terminal = '\n';
-    char c = line[l++]; // check the space
-    if (c == '"') {
-        l++;
+    if (**line == '"') {
+        ++*line;
         terminal = '"';
-    } // else c = '/'
-    while (stillRemaining(line, terminal, path, &i, &l))
-        mkdir(path, 0777); // make directories
-    FILE *fp = fopen(path, "r"); // create file if new
+    } // else **line = '\'
+    while (stillRemaining(line, terminal, path)) mkdir(path, 0777);
+    FILE *fp = fopen(path, "r");
     if (fp != NULL) error1();
     else fp = fopen(path, "a");
-    fclose(fp);
-    free(path);
+    fclose(fp); free(path);
 }
 
-int stillRemaining(char *line, char terminal, char *path, int *i, int *l) {
-    char c;
+int stillRemaining(char **line, char terminal, char *path) {
     while (1) {
-        c = line[(*l)++];
-        if (c == terminal || c == '\n') return 0;
-        path[(*i)++] = c;
-        if (c == '/') return 1;
+        path[strlen(path)] = **line;
+        ++*line;
+        if (**line == '/') return 1;
+        if (**line == terminal || **line == '\n') return 0;
     }
 }
 
 void cat(char **line, char **str) {
-    int l = strlen("cat --file "), i = 0;
-    char path[SIZE]; // address of file
-    if (findPath(*line, path, &i, &l, '\n')) return;
+    *line += strlen("cat --file ");
+    char *path = (char *) malloc(SIZE); // address of file
+    if (findPath(line, path, '\n')) return;
     if (contentFile(path, str)) return;
-    *line += l;
+    free(path);
 }
-
+/*
 char* Dastkary(char *str, char terminal, int space, int *i) {
     char dstr[SIZE];
     int j = 0;
@@ -143,7 +144,7 @@ void insertstr(char *line) {
     writeInFile(path, str);
     free(path); free(str); free(s);
 }
-
+*/
 int findPosition(int _line, int _char, char *str) {
     int i;
     for (i = 0; _line > 1; i++) {
@@ -201,18 +202,17 @@ void writeMiddleString(char **str, char *s, int i) {
     free(tail);
 }
 
-int findPath(char *line, char *path, int *i, int *l, char t) {
-    char terminal = t;
-    char c = line[(*l)++]; // check the space
-    if (c == '"') {
-        (*l)++;
+int findPath(char **line, char *path, char t) {
+    char terminal = '\n';
+    if (**line == '"') {
+        ++*line;
         terminal = '"';
-    } // else c = '/'
-    FILE *fp;
-    while (stillRemaining(line, terminal, path, i, l)) {
+    } // else **line = '/'
+    FILE *fp; ++*line;
+    while (stillRemaining(line, terminal, path)) {
         fp = fopen(path, "r");
-        if (fp == NULL && line[*l + 1] != '/') {
-            error2();
+        if (fp == NULL && **line == '/') {
+            error2();printf("%s", path);
             fclose(fp);
             return 1;
         }
@@ -220,7 +220,7 @@ int findPath(char *line, char *path, int *i, int *l, char t) {
     fclose(fp);
     return 0;
 }
-
+/*
 void removestr(char *line) {
     int l = strlen("removestr --file ");
     char *str = (char *) malloc(SIZE);
@@ -445,3 +445,4 @@ void find(char *line) {
     printf("%i\n", i);
     free(path); free(str); free(s); free(star_s);
 }
+*/
