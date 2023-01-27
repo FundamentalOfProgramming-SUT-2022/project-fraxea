@@ -5,8 +5,8 @@ void switchCommand(char **, char **, char *);
 void createFile(char **);
 int stillRemaining(char **, char, char *);
 void cat(char **, char **);
-char* Dastkary(char *, char, int, int *);
-void insertstr(char *);
+char* Dastkary(char **, int);
+void insertstr(char **, char **, int);
 int findPosition(int, int, char *);
 int contentFile(char *, char **);
 void writeInFile(char *, char *);
@@ -42,10 +42,11 @@ void readCommandLine() {
 }
 
 void switchCommand(char **line, char **output, char *c_n) {
+    int armin = 0;
     /*while (line[0] != '\0')*/
         if (!strcmp(c_n, "createfile")) createFile(line);
         else if (!strcmp(c_n, "cat")) cat(line, output);
-        // else if (!strcmp(c_n, "insertstr")) insertstr(line);
+        else if (!strcmp(c_n, "insertstr")) insertstr(line, output, armin);
         // else if (!strcmp(c_n, "removestr")) removestr(line);
         // else if (!strcmp(c_n, "copystr")) copystr(line);
         // else if (!strcmp(c_n, "cutstr")) cutstr(line);
@@ -104,52 +105,52 @@ void cat(char **line, char **str) {
     if (contentFile(path, str)) return;
     free(path);
 }
-/*
-char* Dastkary(char *str, char terminal, int space, int *i) {
-    char dstr[SIZE];
-    int j = 0;
-    for (int a = 0; ; (*i)++) {
+
+char* Dastkary(char **line, int space) {
+    char terminal = ' ';
+    char *dstr = (char *) malloc(SIZE);
+    *line += space;
+    if (space) terminal = '"';
+    int a = 0;
+    for (int j = 0; ; j++, ++*line) {printf("%i", j);
         if (a) {
-            if (str[*i] == 'n') dstr[j++] = '\n';
-            else dstr[j++] = str[*i];
             a = 0;
+            if (**line == 'n') dstr[j] = '\n';
+            else dstr[j] = **line;
         }
-        else if (str[*i] == terminal) {
-            if (space && a) dstr[j++] = str[*i];
-            else break;
-        }
-        else if (str[*i] == '\\') a = 1;
-        else dstr[j++] = str[*i];
+        else if (**line == '\\') {j--; a = 1;}
+        else if (**line == terminal) break;
+        else dstr[j] = **line;
     }
+    *line += space;
     return dstr;
 }
 
-void insertstr(char *line) {
-    int l = strlen("insertstr --file ");
+void insertstr(char **line, char **s, int armin) {
+    *line += strlen("insertstr --file ");
     char *path = (char *) malloc(SIZE); // address of file
     char *str = (char *) malloc(SIZE); // content of file
-    char *s = (char *) malloc(SIZE); // string to insert
     int _line, _char, i = 0;
-    if (findPath(line, path, &i, &l, ' ')) return;
+    if (findPath(line, path, ' ')) return;
     if (contentFile(path, &str)) return;
-    line += l + strlen("--str ");
-    l = 0; // lenght of the string for insert
-    if (*line == '"') s = Dastkary(++line, '"', 1, &l);
-    else s = Dastkary(line, ' ', 0, &l);
-    line += l + strlen(" --pos ");
-    sscanf(line, "%i:%i", &_line, &_char); // find position
+    if (!armin) {
+        *line += strlen(" --str ");
+        if (**line == '"') i = 1;
+        *s = Dastkary(line, i);printf("%s", *line);
+    }
+    sscanf(*line, " --pos %i:%i", &_line, &_char); // find position
     i = findPosition(_line, _char, str);
     if (i == -1) return;
-    writeMiddleString(&str, s, i);
+    writeMiddleString(&str, *s, i);
     writeInFile(path, str);
-    free(path); free(str); free(s);
+    free(path); free(str);
 }
-*/
+
 int findPosition(int _line, int _char, char *str) {
     int i;
     for (i = 0; _line > 1; i++) {
         if (str[i] == '\0') {
-            printf("The line is not available!\n");
+            error5();
             return -1;
         }
         if (str[i] == '\n') _line--;
@@ -157,7 +158,7 @@ int findPosition(int _line, int _char, char *str) {
     if (i) i++;
     while (_char--) {
         if (str[i] == '\n' || str[i] == '\0') {
-            printf("The line is shorter!\n");
+            error6();
             return -1;
         }
         i++;
@@ -191,11 +192,9 @@ void writeInFile(char *path, char *str) {
 
 void writeMiddleString(char **str, char *s, int i) {
     char *tail = (char *) malloc(SIZE);
-    for (int j = 0; ; j++) {
-        if (j == strlen(tail)) tail = realloc(tail, strlen(tail) + SIZE);
-        tail[j] = (*str)[i + j];
-        if (tail[j] == '\0') break;
-    }
+    int size = strlen(*str) - i;
+    if (SIZE < size) tail = realloc(tail, size);
+    for (int j = 0; j < size; j++) tail[j] = (*str)[i + j];
     (*str)[i] = '\0';
     strcat(*str, s);
     strcat(*str, tail);
@@ -203,7 +202,7 @@ void writeMiddleString(char **str, char *s, int i) {
 }
 
 int findPath(char **line, char *path, char t) {
-    char terminal = '\n';
+    char terminal = t;
     if (**line == '"') {
         ++*line;
         terminal = '"';
@@ -212,7 +211,7 @@ int findPath(char **line, char *path, char t) {
     while (stillRemaining(line, terminal, path)) {
         fp = fopen(path, "r");
         if (fp == NULL && **line == '/') {
-            error2();printf("%s", path);
+            error2();
             fclose(fp);
             return 1;
         }
