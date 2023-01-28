@@ -12,7 +12,7 @@ int contentFile(char *, char **);
 void writeInFile(char *, char *);
 void writeMiddleString(char **, char *, int);
 int findPath(char **, char *, char);
-void removestr(char *);
+void removestr(char **);
 int removeMiddleString(char **, char, int, int);
 void copystr(char *);
 int readMiddleString(char **, char, int, int, char **);
@@ -46,8 +46,8 @@ void switchCommand(char **line, char **output, char *c_n) {
     /*while (line[0] != '\0')*/
         if (!strcmp(c_n, "createfile")) createFile(line);
         else if (!strcmp(c_n, "cat")) cat(line, output);
-        else if (!strcmp(c_n, "insertstr")) insertstr(line, output, armin);
-        // else if (!strcmp(c_n, "removestr")) removestr(line);
+        else if (!strcmp(c_n, "insertstr")) {insertstr(line, output, armin); return;}
+        else if (!strcmp(c_n, "removestr")) removestr(line);
         // else if (!strcmp(c_n, "copystr")) copystr(line);
         // else if (!strcmp(c_n, "cutstr")) cutstr(line);
         // else if (!strcmp(c_n, "pastestr")) pastestr(line);
@@ -75,17 +75,17 @@ void switchCommand(char **line, char **output, char *c_n) {
 }
 
 void createFile(char **line) {
-    *line += strlen("createfile --file /");
+    *line += strlen("createfile --file ");
     char *path = (char *) malloc(SIZE);
     char terminal = '\n';
     if (**line == '"') {
         ++*line;
         terminal = '"';
-    } // else **line = '\'
+    } ++*line;// else **line = '\'
     while (stillRemaining(line, terminal, path)) mkdir(path, 0777);
     FILE *fp = fopen(path, "r");
     if (fp != NULL) error1();
-    else fp = fopen(path, "a");
+    else {fclose(fp); fp = fopen(path, "a");}
     fclose(fp); free(path);
 }
 
@@ -109,10 +109,9 @@ void cat(char **line, char **str) {
 char* Dastkary(char **line, int space) {
     char terminal = ' ';
     char *dstr = (char *) malloc(SIZE);
-    *line += space;
-    if (space) terminal = '"';
+    *line += space; if (space) terminal = '"';
     int a = 0;
-    for (int j = 0; ; j++, ++*line) {printf("%i", j);
+    for (int j = 0; ; j++, ++*line) {
         if (a) {
             a = 0;
             if (**line == 'n') dstr[j] = '\n';
@@ -122,8 +121,7 @@ char* Dastkary(char **line, int space) {
         else if (**line == terminal) break;
         else dstr[j] = **line;
     }
-    *line += space;
-    return dstr;
+    *line += space; return dstr;
 }
 
 void insertstr(char **line, char **s, int armin) {
@@ -136,7 +134,7 @@ void insertstr(char **line, char **s, int armin) {
     if (!armin) {
         *line += strlen(" --str ");
         if (**line == '"') i = 1;
-        *s = Dastkary(line, i);printf("%s", *line);
+        *s = Dastkary(line, i);
     }
     sscanf(*line, " --pos %i:%i", &_line, &_char); // find position
     i = findPosition(_line, _char, str);
@@ -149,18 +147,11 @@ void insertstr(char **line, char **s, int armin) {
 int findPosition(int _line, int _char, char *str) {
     int i;
     for (i = 0; _line > 1; i++) {
-        if (str[i] == '\0') {
-            error5();
-            return -1;
-        }
+        if (str[i] == '\0') {error5(); return -1;}
         if (str[i] == '\n') _line--;
     }
-    if (i) i++;
     while (_char--) {
-        if (str[i] == '\n' || str[i] == '\0') {
-            error6();
-            return -1;
-        }
+        if (str[i] == '\n' || str[i] == '\0') {error6(); return -1;}
         i++;
     }
     return i;
@@ -180,8 +171,7 @@ int contentFile(char *path, char **str) {
         if (c == EOF) break;
         (*str)[i] = c;
     }
-    fclose(fp);
-    return 0;
+    fclose(fp); return 0;
 }
 
 void writeInFile(char *path, char *str) {
@@ -191,9 +181,8 @@ void writeInFile(char *path, char *str) {
 }
 
 void writeMiddleString(char **str, char *s, int i) {
-    char *tail = (char *) malloc(SIZE);
     int size = strlen(*str) - i;
-    if (SIZE < size) tail = realloc(tail, size);
+    char *tail = (char *) malloc(size);
     for (int j = 0; j < size; j++) tail[j] = (*str)[i + j];
     (*str)[i] = '\0';
     strcat(*str, s);
@@ -212,47 +201,41 @@ int findPath(char **line, char *path, char t) {
         fp = fopen(path, "r");
         if (fp == NULL && **line == '/') {
             error2();
-            fclose(fp);
-            return 1;
-        }
+            fclose(fp); return 1;
+        } fclose(fp);
     }
-    fclose(fp);
-    return 0;
+    if (**line == '"') ++*line;
+    fclose(fp); return 0;
 }
-/*
-void removestr(char *line) {
-    int l = strlen("removestr --file ");
+
+void removestr(char **line) {
+    *line += strlen("removestr --file ");
     char *str = (char *) malloc(SIZE);
     char *path = (char *) malloc(SIZE);
     char t = ' ';
     int _line, _char, size, i = 0;
-    if (findPath(line, path, &i, &l, t)) return;
+    if (findPath(line, path, t)) return;
     if (contentFile(path, &str)) return;
-    line += l + strlen(" --pos");
-    sscanf(line, "%i:%i -size %i -%c", &_line, &_char, &size, &t); // find position
+    sscanf(*line, " --pos %i:%i -size %i -%c", &_line, &_char, &size, &t);
     i = findPosition(_line, _char, str);
     if (i == -1) return;
-    if (removeMiddleString(&str, t, i, size)) printf("Too many characters to remove!\n");
+    if (removeMiddleString(&str, t, i, size)) error7();
     writeInFile(path, str);
     free(path); free(str);
 }
 
 int removeMiddleString(char **str, char t, int i, int size) {
-    char *tail = (char *) malloc(SIZE);
     if (t == 'b' && i < size) return 1;
     if (t == 'f' && strlen(*str) < i + size) return 1;
     if (t == 'f') i += size;
-    for (int j = 0; ; j++) {
-        if (j == strlen(tail)) tail = realloc(tail, strlen(tail) + SIZE);
-        tail[j] = (*str)[i + j];
-        if (tail[j] == '\0') break;
-    }
+    int size_tail = strlen(*str) - i;
+    char *tail = (char *) malloc(size_tail);
+    for (int j = 0; j < size_tail; j++) tail[j] = (*str)[i + j];
     (*str)[i - size] = '\0';
     strcat(*str, tail);
-    free(tail);
-    return 0;
+    free(tail); return 0;
 }
-
+/*
 void copystr(char *line) {
     int l = strlen("copystr --file ");
     char *path = (char *) malloc(SIZE); // address of file
