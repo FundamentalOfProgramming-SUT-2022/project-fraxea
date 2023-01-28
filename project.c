@@ -1,6 +1,6 @@
 #include "errors.h"
 
-void readCommandLine();
+void readCommandLine(char *);
 void switchCommand(char **, char **, char *);
 void createFile(char **);
 int stillRemaining(char **, char, char *);
@@ -14,10 +14,10 @@ void writeMiddleString(char **, char *, int);
 int findPath(char **, char *, char);
 void removestr(char **);
 int removeMiddleString(char **, char, int, int);
-void copystr(char *);
-int readMiddleString(char **, char, int, int, char **);
-void cutstr(char *);
-void pastestr(char *);
+void copystr(char **);
+int readMiddleString(char *, char, int, int, char **);
+void cutstr(char **);
+void pastestr(char **);
 int readClipboard(char **);
 int isNew(int **, int);
 int searchString(char *, int, char *, int, char *);
@@ -26,16 +26,18 @@ char* Dastkary2(char *, char, int, int *, char *);
 void find(char *);
 
 int main() {
-    while (1) readCommandLine();
+    unsigned long size = SIZE;
+    char *line = (char *) malloc(size);
+    while (1) {
+        getline(&line, &size, stdin);
+        readCommandLine(line);
+    }
     return 0;
 }
 
-void readCommandLine() {
-    static unsigned long size = SIZE;
-    char *line = (char *) malloc(size);
-    char *output = (char *) malloc(size);
-    char *c_n = (char *) malloc(size);
-    getline(&line, &size, stdin);
+void readCommandLine(char *line) {
+    char *output = (char *) malloc(SIZE);
+    char *c_n = (char *) malloc(SIZE);
     sscanf(line, "%s", c_n);
     switchCommand(&line, &output, c_n);
     free(output); free(c_n);
@@ -48,9 +50,9 @@ void switchCommand(char **line, char **output, char *c_n) {
         else if (!strcmp(c_n, "cat")) cat(line, output);
         else if (!strcmp(c_n, "insertstr")) {insertstr(line, output, armin); return;}
         else if (!strcmp(c_n, "removestr")) removestr(line);
-        // else if (!strcmp(c_n, "copystr")) copystr(line);
-        // else if (!strcmp(c_n, "cutstr")) cutstr(line);
-        // else if (!strcmp(c_n, "pastestr")) pastestr(line);
+        else if (!strcmp(c_n, "copystr")) copystr(line);
+        else if (!strcmp(c_n, "cutstr")) cutstr(line);
+        else if (!strcmp(c_n, "pastestr")) pastestr(line);
         // else if (!strcmp(c_n, "find")) find(line);
         /*else if ...*/
         else error4();
@@ -159,18 +161,12 @@ int findPosition(int _line, int _char, char *str) {
 
 int contentFile(char *path, char **str) {
     FILE *fp = fopen(path, "r");
-    char c;
-    if (fp == NULL) {
-        error3();
-        fclose(fp);
-        return 1;
-    }
-    for (int i = 0; ; i++) {
-        if (i == strlen(*str)) *str = realloc(*str, strlen(*str) + SIZE);
-        c = getc(fp);
-        if (c == EOF) break;
-        (*str)[i] = c;
-    }
+    if (fp == NULL) {error3(); fclose(fp); return 1;}
+    int size;
+    for (size = 0; getc(fp) != EOF; size++);
+    rewind(fp);
+    *str = realloc(*str, size);
+    for (int i = 0; i < size; i++) (*str)[i] = getc(fp);
     fclose(fp); return 0;
 }
 
@@ -182,6 +178,7 @@ void writeInFile(char *path, char *str) {
 
 void writeMiddleString(char **str, char *s, int i) {
     int size = strlen(*str) - i;
+    *str = realloc(*str, strlen(*str) + strlen(s));
     char *tail = (char *) malloc(size);
     for (int j = 0; j < size; j++) tail[j] = (*str)[i + j];
     (*str)[i] = '\0';
@@ -210,7 +207,7 @@ int findPath(char **line, char *path, char t) {
 
 void removestr(char **line) {
     *line += strlen("removestr --file ");
-    char *str = (char *) malloc(SIZE);
+    char *str = (char *) malloc(SIZE); // content file
     char *path = (char *) malloc(SIZE);
     char t = ' ';
     int _line, _char, size, i = 0;
@@ -235,69 +232,60 @@ int removeMiddleString(char **str, char t, int i, int size) {
     strcat(*str, tail);
     free(tail); return 0;
 }
-/*
-void copystr(char *line) {
-    int l = strlen("copystr --file ");
+
+void copystr(char **line) {
+    *line += strlen("copystr --file ");
     char *path = (char *) malloc(SIZE); // address of file
     char *str = (char *) malloc(SIZE); // content of file
-    char *s = (char *) malloc(SIZE); // string to insert
-    char t;
-    int size, _line, _char, i = 0;
-    if (findPath(line, path, &i, &l, ' ')) return;
+    char t, *s; // string to insert
+    int size, _line, _char, i;
+    if (findPath(line, path, ' ')) return;
     if (contentFile(path, &str)) return;
-    line += l + strlen("--pos ");
-    sscanf(line, "%i:%i -size %i -%c", &_line, &_char, &size, &t); // find position
+    sscanf(*line, " --pos %i:%i -size %i -%c", &_line, &_char, &size, &t);
     i = findPosition(_line, _char, str);
     if (i == -1) return;
-    if (readMiddleString(&str, t, i, size, &s))
-        printf("Too many characters to copy!\n");
+    if (readMiddleString(str, t, i, size, &s)) {error8(); return;}
     writeInFile("clipboard", s);
     free(path); free(str); free(s);
 }
 
-int readMiddleString(char **str, char t, int i, int size, char **s) {
+int readMiddleString(char *str, char t, int i, int size, char **s) {
     if (t == 'b' && i < size) return 1;
-    if (t == 'f' && strlen(*str) < i + size) return 1;
+    if (t == 'f' && strlen(str) < i + size) return 1;
     if (t == 'b') i -= size;
-    for (int j = 0; j < size; j++) {
-        if (j == strlen(*s)) *s = realloc(*s, strlen(*s) + SIZE);
-        (*s)[j] = (*str)[i + j];
-    }
+    *s = (char *) malloc(size);
+    for (int j = 0; j < size; j++) (*s)[j] = str[i + j];
     return 0;
 }
 
-void cutstr(char *line) {
-    int l = strlen("cutstr --file ");
+void cutstr(char **line) {
+    *line += strlen("cutstr --file ");
     char *path = (char *) malloc(SIZE); // address of file
     char *str = (char *) malloc(SIZE); // content of file
-    char *s = (char *) malloc(SIZE); // string to insert
-    char t;
-    int size, _line, _char, i = 0;
-    if (findPath(line, path, &i, &l, ' ')) return;
+    char t, *s; // string to insert
+    int size, _line, _char, i;
+    if (findPath(line, path, ' ')) return;
     if (contentFile(path, &str)) return;
-    line += l + strlen("--pos ");
-    sscanf(line, "%i:%i -size %i -%c", &_line, &_char, &size, &t); // find position
+    sscanf(*line, " --pos %i:%i -size %i -%c", &_line, &_char, &size, &t);
     i = findPosition(_line, _char, str);
     if (i == -1) return;
-    if (readMiddleString(&str, t, i, size, &s))
-        printf("Too many characters to cut!\n");
+    if (readMiddleString(str, t, i, size, &s)) {error9(); return;}
     writeInFile("clipboard", s);
     removeMiddleString(&str, t, i, size);
-    writeInFile(path, str);
+    writeInFile(path, str); // The only difference between copy and cut!
     free(path); free(str); free(s);
 }
 
-void pastestr(char *line) {
-    int l = strlen("pastestr --file ");
+void pastestr(char **line) {
+    *line += strlen("pastestr --file ");
     char *path = (char *) malloc(SIZE); // address of file
     char *str = (char *) malloc(SIZE); // content of file
-    char *s = (char *) malloc(SIZE); // string to insert
+    char *s; // string to insert
     int _line, _char, i = 0;
     if (readClipboard(&s)) return;
-    if (findPath(line, path, &i, &l, ' ')) return;
+    if (findPath(line, path, ' ')) return;
     if (contentFile(path, &str)) return;
-    line += l + strlen("--pos ");
-    sscanf(line, "%i:%i", &_line, &_char); // find position
+    sscanf(*line, " --pos %i:%i", &_line, &_char);
     i = findPosition(_line, _char, str);
     if (i == -1) return;
     writeMiddleString(&str, s, i);
@@ -307,22 +295,15 @@ void pastestr(char *line) {
 
 int readClipboard(char **str) {
     FILE *fp = fopen("clipboard", "r");
-    char c;
-    if (fp == NULL) {
-        printf("The clipboard is empty!\n");
-        fclose(fp);
-        return 1;
-    }
-    for (int i = 0; ; i++) {
-        if (i == strlen(*str)) *str = realloc(*str, strlen(*str) + SIZE);
-        c = getc(fp);
-        if (c == EOF) break;
-        (*str)[i] = c;
-    }
-    fclose(fp);
-    return 0;
+    if (fp == NULL) {error10(); fclose(fp); return 1;}
+    int size;
+    for (size = 0; getc(fp) != EOF; size++);
+    rewind(fp);
+    *str = (char *) malloc(size);
+    for (int i = 0; i < size; i++) (*str)[i] = getc(fp);
+    fclose(fp); return 0;
 }
-
+/*
 int isNew(int **s_s, int cnt) {
     for (int i = 0; i < cnt; i++) {
         if ((s_s[i][0] == s_s[cnt][0]) && (s_s[i][1] == s_s[cnt][1])) return 0;
