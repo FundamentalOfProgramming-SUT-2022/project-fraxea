@@ -24,6 +24,13 @@ int searchString(char *, int, char *, int, char *);
 int countString(char *, int, char *, int, char *, int **, int *, int);
 char* Dastkary2(char **, int, char *);
 void find(char **, char **, int);
+struct features featureOnOff(char **);
+char* makeDecision(char **, char *, char *, char *);
+char* findAt(char *, char *, char *, int);
+char* findAt_ByWord(char *, char *, char *, int);
+char* findCount(char *, char *, char *);
+char* findAll(char *, char *, char *);
+char* findAll_Byword(char *, char *, char *);
 
 int main() {
     unsigned long size = SIZE;
@@ -202,7 +209,7 @@ int findPath(char **line, char *path, char t) {
         } fclose(fp);
     }
     if (**line == '"') ++*line;
-    fclose(fp); return 0;
+    return 0;
 }
 
 void removestr(char **line) {
@@ -402,6 +409,42 @@ void find(char **line, char **output, int armin) {
     *line += strlen(" --file ");
     if (findPath(line, path, ' ')) return;
     if (contentFile(path, &str)) return;
-    makeDecision(line, s, output);
+    *output = makeDecision(line, str, s, star_s);
     free(path); free(str); free(s); free(star_s);
+}
+
+struct features featureOnOff(char **line) {
+    struct features feature; // init
+    for (int i = 0; i < 4; i++) feature.f[i] = 0;
+    char *d = (char *) malloc(SIZE); // get features
+    for (feature.sum = 0; sscanf(*line, " %s", d) > -1; feature.sum++) {
+        if (!strcmp(d, "-byword")) feature.f[1]++;
+        else if (!strcmp(d, "-count")) feature.f[2]++;
+        else if (!strcmp(d, "-all")) feature.f[3]++;
+        else {
+            feature.f[0]++;
+            sscanf(*line, " %s %i", d, &feature.at);
+            *line += strlen(d) + 1;
+            sscanf(*line, "%s", d);
+        }
+        *line += strlen(d) + 1;
+    }
+    return feature;
+}
+
+char* makeDecision(char **line, char *str, char *s, char *star_s) {
+    struct features feature = featureOnOff(line);
+    if (feature.sum == 0) return findAt(str, s, star_s, 1);
+    if (feature.sum == 1) {
+        if (feature.f[0]) return findAt(str, s, star_s, feature.at);
+        if (feature.f[1]) return findAt_ByWord(str, s, star_s, 1);
+        if (feature.f[2]) return findCount(str, s, star_s);
+        return findAll(str, s, star_s);
+    }
+    if (feature.sum == 2) {
+        if (!feature.f[1] || feature.f[2]) {error11(); return "\0";}
+        if (feature.f[3]) return findAll_Byword(str, s, star_s);
+        if (feature.f[0]) return findAt_Byword(str, s, star_s, feature.at);
+    }
+    error11(); return "\0";
 }
