@@ -310,7 +310,7 @@ int readClipboard(char **str) {
     for (int i = 0; i < size; i++) (*str)[i] = getc(fp);
     fclose(fp); return 0;
 }
-/*
+
 int isNew(int **s_s, int cnt) {
     for (int i = 0; i < cnt; i++) {
         if ((s_s[i][0] == s_s[cnt][0]) && (s_s[i][1] == s_s[cnt][1])) return 0;
@@ -365,10 +365,10 @@ int countString(char *str, int i, char *s, int j, char *star_s, int **s_s, int *
         }
     }
     if (j) return -1;
-    if (k) return countString(str, i + k, s, 0, star_s, s_s, cnt, 0);
+    if (k) return countString(str, i + 1, s, 0, star_s, s_s, cnt, 0);
     return countString(str, i + 1, s, 0, star_s, s_s, cnt, 0);
 }
-*/
+
 char* Dastkary2(char **line, int space, char *star_s) {
     char terminal = ' ';
     char *dstr = (char *) malloc(SIZE);
@@ -403,7 +403,7 @@ void find(char **line, char **output, int armin) {
     }
     else {
         *line += strlen(" --str ");
-        if (*line == '"') i = 1;
+        if (**line == '"') i = 1;
         s = Dastkary2(line, i, star_s);
     }
     *line += strlen(" --file ");
@@ -437,14 +437,25 @@ char* makeDecision(char **line, char *str, char *s, char *star_s) {
     if (feature.sum == 0) return findAt(str, s, star_s, 1);
     if (feature.sum == 1) {
         if (feature.f[0]) return findAt(str, s, star_s, feature.at);
-        if (feature.f[1]) return findAt_ByWord(str, s, star_s, 1);
-        if (feature.f[2]) return findCount(str, s, star_s);
-        return findAll(str, s, star_s);
+        // if (feature.f[1]) return findAt_ByWord(str, s, star_s, 1);
+        // if (feature.f[2]) return findCount(str, s, star_s);
+        // return findAll(str, s, star_s);
     }
     if (feature.sum == 2) {
         if (!feature.f[1] || feature.f[2]) {error11(); return "\0";}
-        if (feature.f[3]) return findAll_Byword(str, s, star_s);
-        if (feature.f[0]) return findAt_Byword(str, s, star_s, feature.at);
+        // if (feature.f[3]) return findAll_Byword(str, s, star_s);
+        // if (feature.f[0]) return findAt_Byword(str, s, star_s, feature.at);
     }
     error11(); return "\0";
+}
+
+char* findAt(char *content, char *find, char *star_f, int at) {
+    int count = 0;
+    int **find_all = (int **) malloc(SIZE * sizeof(int *));
+    char *output = (char *) malloc(SIZE);
+    countString(content, 0, find, 0, star_f, find_all, &count, 0);
+    if (count < at || at < 1) sprintf(output, "-1\n");
+    else sprintf(output, "%i\n", find_all[at - 1][0]);
+    free(find_all);
+    return output;
 }
