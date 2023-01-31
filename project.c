@@ -31,6 +31,7 @@ char* findAt_ByWord(char *, char *, char *, int);
 char* findCount(char *, char *, char *);
 char* findAll(char *, char *, char *);
 char* findAll_Byword(char *, char *, char *);
+int byWord(char *, int);
 
 int main() {
     unsigned long size = SIZE;
@@ -47,7 +48,7 @@ void readCommandLine(char *line) {
     char *c_n = (char *) malloc(SIZE);
     sscanf(line, "%s", c_n);
     switchCommand(&line, &output, c_n);
-    free(output); free(c_n);
+    if (*output) free(output); free(c_n);
 }
 
 void switchCommand(char **line, char **output, char *c_n) {
@@ -437,14 +438,14 @@ char* makeDecision(char **line, char *str, char *s, char *star_s) {
     if (feature.sum == 0) return findAt(str, s, star_s, 1);
     if (feature.sum == 1) {
         if (feature.f[0]) return findAt(str, s, star_s, feature.at);
-        // if (feature.f[1]) return findAt_ByWord(str, s, star_s, 1);
-        // if (feature.f[2]) return findCount(str, s, star_s);
-        // return findAll(str, s, star_s);
+        if (feature.f[1]) return findAt_ByWord(str, s, star_s, 1);
+        if (feature.f[2]) return findCount(str, s, star_s);
+        return findAll(str, s, star_s);
     }
     if (feature.sum == 2) {
         if (!feature.f[1] || feature.f[2]) {error11(); return "\0";}
-        // if (feature.f[3]) return findAll_Byword(str, s, star_s);
-        // if (feature.f[0]) return findAt_Byword(str, s, star_s, feature.at);
+        if (feature.f[3]) return findAll_Byword(str, s, star_s);
+        if (feature.f[0]) return findAt_ByWord(str, s, star_s, feature.at);
     }
     error11(); return "\0";
 }
@@ -456,6 +457,66 @@ char* findAt(char *content, char *find, char *star_f, int at) {
     countString(content, 0, find, 0, star_f, find_all, &count, 0);
     if (count < at || at < 1) sprintf(output, "-1\n");
     else sprintf(output, "%i\n", find_all[at - 1][0]);
-    free(find_all);
-    return output;
+    free(find_all); return output;
+}
+
+char* findAt_ByWord(char *content, char *find, char *star_f, int at) {
+    int count = 0;
+    int **find_all = (int **) malloc(SIZE * sizeof(int *));
+    char *output = (char *) malloc(SIZE);
+    countString(content, 0, find, 0, star_f, find_all, &count, 0);
+    if (count < at || at < 1) sprintf(output, "-1\n");
+    else sprintf(output, "%i\n", byWord(content, find_all[at - 1][0]));
+    free(find_all); return output;
+}
+
+char* findCount(char *content, char *find, char *star_f) {
+    int count = 0;
+    int **find_all = (int **) malloc(SIZE * sizeof(int *));
+    char *output = (char *) malloc(SIZE);
+    countString(content, 0, find, 0, star_f, find_all, &count, 0);
+    sprintf(output, "%i\n", count);
+    free(find_all); return output;
+}
+
+char* findAll(char *content, char *find, char *star_f) {
+    int count = 0;
+    int **find_all = (int **) malloc(SIZE * sizeof(int *));
+    char *output = (char *) malloc(SIZE);
+    char *output_ = (char *) malloc(SIZE);
+    countString(content, 0, find, 0, star_f, find_all, &count, 0);
+    if (count) {
+        sprintf(output, "%i", find_all[0][0]);
+        for (int i = 1; i < count; i++) {
+            sprintf(output_, ", %i", find_all[i][0]);
+            strcat(output, output_);
+        }
+        strcat(output, "\n");
+    }
+    else sprintf(output, "-1\n");
+    free(find_all); return output;
+}
+
+char* findAll_Byword(char *content, char *find, char *star_f) {
+    int count = 0;
+    int **find_all = (int **) malloc(SIZE * sizeof(int *));
+    char *output = (char *) malloc(SIZE);
+    char *output_ = (char *) malloc(SIZE);
+    countString(content, 0, find, 0, star_f, find_all, &count, 0);
+    if (count) {
+        sprintf(output, "%i", byWord(content, find_all[0][0]));
+        for (int i = 1; i < count; i++) {
+            sprintf(output_, ", %i", byWord(content, find_all[i][0]));
+            strcat(output, output_);
+        }
+        strcat(output, "\n");
+    }
+    else sprintf(output, "-1\n");
+    free(find_all); return output;
+}
+
+int byWord(char *s, int j) {
+    int w = 0;
+    for (int i = 0; i < j; i++) if (s[i] == ' ' || s[i] == '\n') w++;
+    return w;
 }
