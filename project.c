@@ -37,6 +37,10 @@ void makeDecisionReplace(char **, char *, char *, char *, char *, char *);
 void replace(char **);
 void replaceAt(char *, char *, char *, int, char *, char *);
 void replaceAll(char *, char *, char *, char *, char *);
+void grep(char **, char **, int);
+int getFeatures(char **);
+char* findPattern(char **, char *, int);
+char* finalGrep(struct grep_pattern *, int, int);
 
 int main() {
     unsigned long size = SIZE;
@@ -68,6 +72,7 @@ void switchCommand(char **line, char **output, char *c_n) {
         else if (!strcmp(c_n, "pastestr")) pastestr(line);
         else if (!strcmp(c_n, "find")) find(line, output, armin);
         else if (!strcmp(c_n, "replace")) replace(line);
+        else if (!strcmp(c_n, "grep")) grep(line, output, armin);
         /*else if ...*/
         else error4();
     printOutPut(*output);
@@ -79,9 +84,9 @@ void switchCommand(char **line, char **output, char *c_n) {
     √ copystr -
     √ cutstr -
     √ pastetr -
-    find $ #
-    replace $
-    grep $ #
+    √ find $ #
+    √ replace -
+    √ grep $ #
     undo -
     auto -
     compare #
@@ -352,7 +357,7 @@ int countString(char *str, int i, char *s, int j, char *star_s, int **s_s, int *
         return 1;
     }
     if (i > strlen(str)) return -1;
-    if (star_s[j] == ' ') {
+    if (star_s[j] != '*') {
         if (str[i] == s[j]) {
             if (countString(str, i + 1, s, j + 1, star_s, s_s, cnt, len + 1) > -1) {
                 if (j) return 1;
@@ -585,6 +590,7 @@ void replaceAt(char *content, char *find, char *star_f, int at, char *rep, char 
         removeMiddleString(&content, 'f', find_all[at - 1][0], find_all[at - 1][1] - find_all[at - 1][0]);
         writeMiddleString(&content, rep, find_all[at - 1][0]);
         writeInFile(path, content);
+        messege13();
     }
     free(find_all);
 }
@@ -609,6 +615,84 @@ void replaceAll(char *content, char *find, char *star_f, char *rep, char *path) 
         }
         // insertion
         for (int i = 0; i < el; i++) writeMiddleString(&content, rep, ins[i] + i * strlen(rep));
-        writeInFile(path, content);
+        writeInFile(path, content); messege13();
     }
+}
+
+void grep(char **line, char **output, int armin) {
+    *line += strlen("grep");
+    char *str = (char *) malloc(SIZE); // content of file
+    char *s = (char *) malloc(SIZE); // pattern
+    int i = 0;
+    int ft = getFeatures(line);
+    if (ft) *line += strlen(" -l");
+    if (armin) for (int i = 0; ; i++) {
+        s[i] = (*output)[i];
+        if ((*output)[i] == '\0') break;
+    }
+    else {
+        *line += strlen(" --str ");
+        if (**line == '"') i = 1;
+        s = Dastkary(line, i);
+    }
+    *line += strlen(" --files ");
+    *output = findPattern(line, s, ft);
+    free(str); free(s);
+}
+
+int getFeatures(char **line) {
+    char *feature = (char *) malloc(SIZE);
+    sscanf(*line, "%s", feature);
+    if (!strcmp(feature, "-l")) return 1;
+    if (!strcmp(feature, "-c")) return 2;
+    return 0;
+}
+
+char* findPattern(char **line, char *pattern, int ft) {
+    char *path = (char *) malloc(SIZE);
+    char *content = (char *) malloc(SIZE);
+    struct grep_pattern *P = (struct grep_pattern *) malloc(SIZE * sizeof(struct grep_pattern));
+    int ln = 0, count;
+    int **find_all = (int **) malloc(SIZE * sizeof(int *));
+    (*line)[strlen(*line) - 1] = ' ';
+    while (**line != '\0') {
+        free(path); path = (char *) malloc(SIZE);
+        if (findPath(line, path, ' ')) return "\0";
+        if (contentFile(path, &content)) return "\0";
+        count = 0;
+        countString(content, 0, pattern, 0, pattern, find_all, &count, 0);
+        if (count) for (int i = 0; i < count; i++) {
+            (P + ln + i)->path = (char *) malloc(SIZE);
+            for (int k = 0; path[k] != '\0'; k++) (P + ln + i)->path[k] = path[k];
+            (P + ln + i)->i = find_all[i][0];
+        }
+        ln += count;
+        ++*line;
+    }
+    return finalGrep(P, ft, ln);
+}
+
+char* finalGrep(struct grep_pattern *P, int ft, int ln) {
+    char *output = (char *) malloc(SIZE);
+    char *output_ = (char *) malloc(SIZE);
+    int k;
+    *output = '\0'; *output_ = '\0';
+    if (ft == 2) sprintf(output, "%i\n", ln);
+    else if (ft == 1) for (int i = 0; i < ln; i++) {
+        if (strcmp(output_, (P + i)->path)) {
+            output_ = (P + i)->path;
+            strcat(output, output_);
+            strcat(output, "\n");
+        }
+    }
+    else for (int i = 0; i < ln; i++) {
+        contentFile((P + i)->path, &output_);
+        for (k = (P + i)->i; k && output_[k - 1] != '\n'; k--);
+        removeMiddleString(&output_, 'b', k, k);
+        for (k = 0; output_[k] != '\n' && output_[k] != '\0'; k++);
+        output_[k] = '\0';
+        strcat(output, (P + i)->path); strcat(output, ": ");
+        strcat(output, output_); strcat(output, "\n");
+    }
+    free(output_); return output;
 }
