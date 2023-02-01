@@ -36,6 +36,7 @@ struct features_rep featureOnOffReplace(char **);
 void makeDecisionReplace(char **, char *, char *, char *, char *, char *);
 void replace(char **);
 void replaceAt(char *, char *, char *, int, char *, char *);
+void replaceAll(char *, char *, char *, char *, char *);
 
 int main() {
     unsigned long size = SIZE;
@@ -548,7 +549,7 @@ void makeDecisionReplace(char **line, char *str, char *s, char *star_s, char *re
     if (feature.sum == 0) replaceAt(str, s, star_s, 1, rep, path);
     else if (feature.sum == 1) {
         if (feature.f[0]) replaceAt(str, s, star_s, feature.at, rep, path);
-        // else replaceAll(str, s, star_s);
+        else replaceAll(str, s, star_s, rep, path);
     }
     else error11();
 }
@@ -568,8 +569,6 @@ void replace(char **line) {
     i = 0;
     if (**line == '"') i = 1;
     rep = Dastkary(line, i);
-    printf("%s\n", rep);
-
     *line += strlen(" --file ");
     if (findPath(line, path, ' ')) return;
     if (contentFile(path, &str)) return;
@@ -588,4 +587,28 @@ void replaceAt(char *content, char *find, char *star_f, int at, char *rep, char 
         writeInFile(path, content);
     }
     free(find_all);
+}
+
+void replaceAll(char *content, char *find, char *star_f, char *rep, char *path) {
+    int count = 0;
+    int **find_all = (int **) malloc(SIZE * sizeof(int *));
+    countString(content, 0, find, 0, star_f, find_all, &count, 0);
+    if (!count) error12();
+    else {
+        // elimination
+        int el = 0;
+        int *ins = (int *) malloc(SIZE * sizeof(int));
+        int findrep = 0;
+        countString(rep, 0, find, 0, star_f, find_all, &findrep, 0);
+        while (1) {
+            count = 0;
+            countString(content, 0, find, 0, star_f, find_all, &count, 0);
+            if (!count) break;
+            ins[el++] = find_all[0][0];
+            removeMiddleString(&content, 'f', find_all[0][0], find_all[0][1] - find_all[0][0]);
+        }
+        // insertion
+        for (int i = 0; i < el; i++) writeMiddleString(&content, rep, ins[i] + i * strlen(rep));
+        writeInFile(path, content);
+    }
 }
