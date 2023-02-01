@@ -32,6 +32,10 @@ char* findCount(char *, char *, char *);
 char* findAll(char *, char *, char *);
 char* findAll_Byword(char *, char *, char *);
 int byWord(char *, int);
+struct features_rep featureOnOffReplace(char **);
+void makeDecisionReplace(char **, char *, char *, char *, char *, char *);
+void replace(char **);
+void replaceAt(char *, char *, char *, int, char *, char *);
 
 int main() {
     unsigned long size = SIZE;
@@ -62,6 +66,7 @@ void switchCommand(char **line, char **output, char *c_n) {
         else if (!strcmp(c_n, "cutstr")) cutstr(line);
         else if (!strcmp(c_n, "pastestr")) pastestr(line);
         else if (!strcmp(c_n, "find")) find(line, output, armin);
+        else if (!strcmp(c_n, "replace")) replace(line);
         /*else if ...*/
         else error4();
     printOutPut(*output);
@@ -519,4 +524,68 @@ int byWord(char *s, int j) {
     int w = 0;
     for (int i = 0; i < j; i++) if (s[i] == ' ' || s[i] == '\n') w++;
     return w;
+}
+
+struct features_rep featureOnOffReplace(char **line) {
+    struct features_rep feature; // init
+    for (int i = 0; i < 2; i++) feature.f[i] = 0;
+    char *d = (char *) malloc(SIZE); // get features
+    for (feature.sum = 0; sscanf(*line, " %s", d) > -1; feature.sum++) {
+        if (!strcmp(d, "-all")) feature.f[1]++;
+        else {
+            feature.f[0]++;
+            sscanf(*line, " %s %i", d, &feature.at);
+            *line += strlen(d) + 1;
+            sscanf(*line, "%s", d);
+        }
+        *line += strlen(d) + 1;
+    }
+    return feature;
+}
+
+void makeDecisionReplace(char **line, char *str, char *s, char *star_s, char *rep, char *path) {
+    struct features_rep feature = featureOnOffReplace(line);
+    if (feature.sum == 0) replaceAt(str, s, star_s, 1, rep, path);
+    else if (feature.sum == 1) {
+        if (feature.f[0]) replaceAt(str, s, star_s, feature.at, rep, path);
+        // else replaceAll(str, s, star_s);
+    }
+    else error11();
+}
+
+void replace(char **line) {
+    *line += strlen("replace");
+    char *path = (char *) malloc(SIZE);
+    char *str = (char *) malloc(SIZE); // content of file
+    char *s = (char *) malloc(SIZE); // string to find
+    char *star_s = (char *) malloc(SIZE); // wildcard
+    char *rep = (char *) malloc(SIZE); // string to replace
+    int i = 0;
+    *line += strlen(" --str1 ");
+    if (**line == '"') i = 1;
+    s = Dastkary2(line, i, star_s);
+    *line += strlen(" --str2 ");
+    i = 0;
+    if (**line == '"') i = 1;
+    rep = Dastkary(line, i);
+    printf("%s\n", rep);
+
+    *line += strlen(" --file ");
+    if (findPath(line, path, ' ')) return;
+    if (contentFile(path, &str)) return;
+    makeDecisionReplace(line, str, s, star_s, rep, path);
+    free(path); free(str); free(s); free(star_s); free(rep);
+}
+
+void replaceAt(char *content, char *find, char *star_f, int at, char *rep, char *path) {
+    int count = 0;
+    int **find_all = (int **) malloc(SIZE * sizeof(int *));
+    countString(content, 0, find, 0, star_f, find_all, &count, 0);
+    if (count < at || at < 1) error12();
+    else {
+        removeMiddleString(&content, 'f', find_all[at - 1][0], find_all[at - 1][1] - find_all[at - 1][0]);
+        writeMiddleString(&content, rep, find_all[at - 1][0]);
+        writeInFile(path, content);
+    }
+    free(find_all);
 }
