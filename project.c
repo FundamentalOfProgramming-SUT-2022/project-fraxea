@@ -41,6 +41,9 @@ void grep(char **, char **, int);
 int getFeatures(char **);
 char* findPattern(char **, char *, int);
 char* finalGrep(struct grep_pattern *, int, int);
+void backup_i(char *);
+void undo(char **);
+void goback(char *);
 
 int main() {
     unsigned long size = SIZE;
@@ -73,21 +76,22 @@ void switchCommand(char **line, char **output, char *c_n) {
         else if (!strcmp(c_n, "find")) find(line, output, armin);
         else if (!strcmp(c_n, "replace")) replace(line);
         else if (!strcmp(c_n, "grep")) grep(line, output, armin);
+        else if (!strcmp(c_n, "undo")) undo(line);
         /*else if ...*/
         else error4();
     printOutPut(*output);
     /* input $  output # neither -
     √ creatfile -
-    √ insertstr $
+    √ @insertstr $
     √ cat #
-    √ removestr -
+    √ @removestr -
     √ copystr -
-    √ cutstr -
-    √ pastetr -
+    √ @cutstr -
+    √ @pastetr -
     √ find $ #
-    √ replace -
+    √ @replace -
     √ grep $ #
-    undo -
+    √ undo @
     auto -
     compare #
     tree #
@@ -161,6 +165,7 @@ void insertstr(char **line, char **s, int armin) {
     i = findPosition(_line, _char, str);
     if (i == -1) return;
     writeMiddleString(&str, *s, i);
+    backup_i(path);
     writeInFile(path, str);
     free(path); free(str);
 }
@@ -236,6 +241,7 @@ void removestr(char **line) {
     i = findPosition(_line, _char, str);
     if (i == -1) return;
     if (removeMiddleString(&str, t, i, size)) error7();
+    backup_i(path);
     writeInFile(path, str);
     free(path); free(str);
 }
@@ -291,6 +297,7 @@ void cutstr(char **line) {
     if (readMiddleString(str, t, i, size, &s)) {error9(); return;}
     writeInFile("clipboard", s);
     removeMiddleString(&str, t, i, size);
+    backup_i(path);
     writeInFile(path, str); // The only difference between copy and cut!
     free(path); free(str); free(s);
 }
@@ -308,6 +315,7 @@ void pastestr(char **line) {
     i = findPosition(_line, _char, str);
     if (i == -1) return;
     writeMiddleString(&str, s, i);
+    backup_i(path);
     writeInFile(path, str);
     free(path); free(str); free(s);
 }
@@ -589,6 +597,7 @@ void replaceAt(char *content, char *find, char *star_f, int at, char *rep, char 
     else {
         removeMiddleString(&content, 'f', find_all[at - 1][0], find_all[at - 1][1] - find_all[at - 1][0]);
         writeMiddleString(&content, rep, find_all[at - 1][0]);
+        backup_i(path);
         writeInFile(path, content);
         messege13();
     }
@@ -615,6 +624,7 @@ void replaceAll(char *content, char *find, char *star_f, char *rep, char *path) 
         }
         // insertion
         for (int i = 0; i < el; i++) writeMiddleString(&content, rep, ins[i] + i * strlen(rep));
+        backup_i(path);
         writeInFile(path, content); messege13();
     }
 }
@@ -695,4 +705,60 @@ char* finalGrep(struct grep_pattern *P, int ft, int ln) {
         strcat(output, output_); strcat(output, "\n");
     }
     free(output_); return output;
+}
+
+void backup_i(char *path) {
+    char *path_i = (char *) malloc(SIZE);
+    char *content = (char *) malloc(SIZE);
+    char *path_dot = (char *) malloc(SIZE);
+    char *_i_ = (char *) malloc(SIZE);
+    int a;
+    contentFile(path, &content);
+    for (int i = 0; i < strlen(path); i++) {
+        path_dot[i] = path[i];
+        if (path[i] == '/') a = i;
+    }
+    writeMiddleString(&path_dot, ".", a + 1);
+    for (a = 0; ; a++) {
+        sprintf(path_i, "%s", path_dot);
+        sprintf(_i_, "(%i)", a);
+        strcat(path_i, _i_);
+        if (fopen(path_i, "r") == NULL) break;
+    }
+    writeInFile(path_i, content);
+    free(path_i); free(content); free(path_dot); free(_i_);
+}
+
+void undo(char **line) {
+    *line += strlen("undo --file ");
+    char *path = (char *) malloc(SIZE); // address of file
+    if (findPath(line, path, '\n')) return;
+    goback(path);
+    free(path);
+}
+
+void goback(char *path) {
+    char *path_i = (char *) malloc(SIZE);
+    char *content = (char *) malloc(SIZE);
+    char *path_dot = (char *) malloc(SIZE);
+    char *_i_ = (char *) malloc(SIZE);
+    int a;
+    for (int i = 0; i < strlen(path); i++) {
+        path_dot[i] = path[i];
+        if (path[i] == '/') a = i;
+    }
+    writeMiddleString(&path_dot, ".", a + 1);
+    for (a = 0; ; a++) {
+        sprintf(path_i, "%s", path_dot);
+        sprintf(_i_, "(%i)", a);
+        strcat(path_i, _i_);
+        if (fopen(path_i, "r") == NULL) break;
+    }
+    if (!a) {error14(); return;}
+    sprintf(path_i, "%s", path_dot);
+    sprintf(_i_, "(%i)", a - 1);
+    strcat(path_i, _i_);
+    contentFile(path_i, &content);
+    writeInFile(path, content);
+    remove(path_i);
 }
