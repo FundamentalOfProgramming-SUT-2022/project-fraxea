@@ -44,6 +44,9 @@ char* finalGrep(struct grep_pattern *, int, int);
 void backup_i(char *);
 void undo(char **);
 void goback(char *);
+void autoIndent(char **);
+int curlyBrace(char *);
+void closingPairs(char **);
 
 int main() {
     unsigned long size = SIZE;
@@ -77,6 +80,7 @@ void switchCommand(char **line, char **output, char *c_n) {
         else if (!strcmp(c_n, "replace")) replace(line);
         else if (!strcmp(c_n, "grep")) grep(line, output, armin);
         else if (!strcmp(c_n, "undo")) undo(line);
+        else if (!strcmp(c_n, "auto-indent")) autoIndent(line);
         /*else if ...*/
         else error4();
     printOutPut(*output);
@@ -202,7 +206,7 @@ void writeInFile(char *path, char *str) {
 
 void writeMiddleString(char **str, char *s, int i) {
     int size = strlen(*str) - i;
-    *str = realloc(*str, strlen(*str) + strlen(s));
+    *str = realloc(*str, strlen(*str) + strlen(s) + 1);
     char *tail = (char *) malloc(size);
     for (int j = 0; j < size; j++) tail[j] = (*str)[i + j];
     (*str)[i] = '\0';
@@ -761,4 +765,86 @@ void goback(char *path) {
     contentFile(path_i, &content);
     writeInFile(path, content);
     remove(path_i);
+}
+
+void autoIndent(char **line) {
+    *line += strlen("auto-indent --file ");
+    char *path = (char *) malloc(SIZE); // address of file
+    char *content = (char *) malloc(SIZE);
+    if (findPath(line, path, '\n')) return;
+    if (contentFile(path, &content)) return;
+    if (curlyBrace(content)) return;
+    closingPairs(&content);
+    backup_i(path);
+    writeInFile(path, content);
+    free(path); free(content);
+    printf("FINISH!\n");
+}
+
+int curlyBrace(char *content) {
+    int ob = 0;
+    for (int i = 0; i < strlen(content); i++) {
+        if (content[i] == '{') ob++;
+        if (content[i] == '}') ob--;
+        if (ob < 0) {
+            error15();
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void closingPairs(char **str) {
+    int j, ob_cl, a = 0;
+    for (int i = 0; i < strlen(*str); i++) {
+        ob_cl = 0;
+        if ((*str)[i] == '{') {
+            ob_cl = 1;
+            // remove space after
+            for (j = 0; i + j + 1 < strlen(*str) && (*str)[i + j + 1] == ' '; j++);
+            removeMiddleString(str, 'f', i + 1, j);
+            // last one
+            if ((*str)[i + 1] != '\n') writeMiddleString(str, "\n", i + 1);
+            // remove space before
+            for (j = 0; j < i && (*str)[i - j - 1] == ' '; j++);
+            removeMiddleString(str, 'b', i, j);
+            i -= j;
+            // insert one or tab
+            if (i && (*str)[i - 1] != '\n') writeMiddleString(str, " ", i++);
+            else for (j = 0; j < a; j++) {
+                writeMiddleString(str, "    ", i);
+                i += 4;
+            }
+        }
+        else if ((*str)[i] == '}') {
+            a--;
+            // remove space after
+            for (j = 0; i + j + 1 < strlen(*str) && (*str)[i + j + 1] == ' '; j++);
+            removeMiddleString(str, 'f', i + 1, j);
+            // last one
+            if (i + 1 < strlen(*str) && (*str)[i + 1] != '\n') writeMiddleString(str, "\n", i + 1);
+            // remove space before
+            for (j = 0; j < i && (*str)[i - j - 1] == ' '; j++);
+            removeMiddleString(str, 'b', i, j);
+            i -= j;
+            // first char
+            if ((*str)[i - 1] != '\n') writeMiddleString(str, "\n", i++);
+            // tab
+            for (j = 0; j < a; j++) {
+                writeMiddleString(str, "    ", i);
+                i += 4;
+            }
+        }
+        else if (i && (*str)[i - 1] == '\n') {
+            for (j = 0; i + j < strlen(*str) && (*str)[i + j] == ' '; j++);
+            removeMiddleString(str, 'f', i, j);
+            for (j = 0; j < a; j++) {
+                writeMiddleString(str, "    ", i);
+                i += 4;
+            }
+            // i--;
+        }
+        a += ob_cl;
+        printf("%i%c\n%s", i, (*str)[i], *str);
+    }
 }
