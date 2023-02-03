@@ -48,6 +48,11 @@ void autoIndent(char **);
 int curlyBrace(char *);
 void closingPairs(char **);
 void removeSpaceStartLine(char **);
+void compare(char **, char **);
+int numLine(char *);
+void findDifference(char *, char *, char **);
+int nextLine(char *);
+void lineDifference(char **, char **, char **, int);
 
 int main() {
     unsigned long size = SIZE;
@@ -82,6 +87,7 @@ void switchCommand(char **line, char **output, char *c_n) {
         else if (!strcmp(c_n, "grep")) grep(line, output, armin);
         else if (!strcmp(c_n, "undo")) undo(line);
         else if (!strcmp(c_n, "auto-indent")) autoIndent(line);
+        else if (!strcmp(c_n, "compare")) compare(line, output);
         /*else if ...*/
         else error4();
     printOutPut(*output);
@@ -97,8 +103,8 @@ void switchCommand(char **line, char **output, char *c_n) {
     √ @replace -
     √ grep $ #
     √ undo @
-    auto -
-    compare #
+    √ auto -
+    √ compare #
     tree #
     !!!armqn
     */
@@ -868,4 +874,79 @@ void removeSpaceStartLine(char **str) {
         }
         removeMiddleString(str, 'f', i + 1, j);
     }
+}
+
+void compare(char **line, char **output) {
+    *line += strlen("compare --files ");
+    char *path1 = (char *) malloc(SIZE); // address of file1
+    char *path2 = (char *) malloc(SIZE); // address of file2
+    char *str1 = (char *) malloc(SIZE); // content of str1
+    char *str2 = (char *) malloc(SIZE); // content of str2
+    if (findPath(line, path1, ' ')) return;
+    if (contentFile(path1, &str1)) return;
+    ++*line;
+    if (findPath(line, path2, '\n')) return;
+    if (contentFile(path2, &str2)) return;
+    sprintf(*output, "");
+    findDifference(str1, str2, output);
+    free(path1); free(path2);
+}
+
+int numLine(char *str) {
+    int a = 0;
+    for (int i = 0; i < strlen(str); i++) {
+        if (str[i] == '\n') a++;
+    }
+    return a;
+}
+
+void findDifference(char *str1, char *str2, char **output) {
+    int l1 = numLine(str1);
+    int l2 = numLine(str2);
+    char *dif = (char *) malloc(SIZE);
+    int m = l1;
+    if (l2 < m) m = l1;
+    for (int i = 0; i < m; i++) lineDifference(&str1, &str2, output, i);
+    if (l2 > l1) {
+        sprintf(dif, ">>>>>>>>>>>> #%i - #%i >>>>>>>>>>>>\n", l1 + 1, l2 + 1);
+        strcat(*output, dif);
+        strcat(*output, str2);
+    }
+    else if (l2 < l1) {
+        sprintf(dif, "<<<<<<<<<<<< #%i - #%i <<<<<<<<<<<<\n", l2 + 1, l1 + 1);
+        strcat(*output, dif);
+        strcat(*output, str1);
+    }
+}
+
+int nextLine(char *s) {
+    int i;
+    for (i = 0; i < strlen(s); i++) if (s[i] == '\n') break;
+    return i;
+}
+
+void lineDifference(char **str1, char **str2, char **output, int _i) {
+    int result = 0, i;
+    int l1 = nextLine(*str1);
+    int l2 = nextLine(*str2);
+    if (l1 != l2) result = 1;
+    if (!result) for (int i = 0; !result && i < l1; i++)
+        if ((*str1)[i] != (*str2)[i]) result = 1;
+    if (result) {
+        char *s1 = (char *) malloc(SIZE);
+        char *s2 = (char *) malloc(SIZE);
+        char *title = (char *) malloc(SIZE);
+        for (i = 0; i < l1; i++) s1[i] = (*str1)[i];
+        s2[i] = '\0';
+        for (i = 0; i < l2; i++) s2[i] = (*str2)[i];
+        s2[i] = '\0';
+        sprintf(title, "============ #%i ============\n", _i + 1);
+        strcat(*output, title);
+        strcat(*output, s1); strcat(*output, "\n");
+        strcat(*output, s2); strcat(*output, "\n");
+    }
+    *str1 += l1;
+    if (**str1 == '\n') ++*str1;
+    *str2 += l2;
+    if (**str2 == '\n') ++*str2;
 }
