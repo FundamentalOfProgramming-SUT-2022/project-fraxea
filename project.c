@@ -47,6 +47,7 @@ void goback(char *);
 void autoIndent(char **);
 int curlyBrace(char *);
 void closingPairs(char **);
+void removeSpaceStartLine(char **);
 
 int main() {
     unsigned long size = SIZE;
@@ -255,7 +256,7 @@ int removeMiddleString(char **str, char t, int i, int size) {
     if (t == 'f' && strlen(*str) < i + size) return 1;
     if (t == 'f') i += size;
     int size_tail = strlen(*str) - i;
-    char *tail = (char *) malloc(size_tail);
+    char *tail = (char *) malloc(size_tail + 1);
     for (int j = 0; j < size_tail; j++) tail[j] = (*str)[i + j];
     (*str)[i - size] = '\0';
     strcat(*str, tail);
@@ -796,6 +797,7 @@ int curlyBrace(char *content) {
 
 void closingPairs(char **str) {
     int j, ob_cl, a = 0;
+    removeSpaceStartLine(str);
     for (int i = 0; i < strlen(*str); i++) {
         ob_cl = 0;
         if ((*str)[i] == '{') {
@@ -845,6 +847,25 @@ void closingPairs(char **str) {
             // i--;
         }
         a += ob_cl;
-        printf("%i%c\n%s", i, (*str)[i], *str);
+    }
+}
+
+void removeSpaceStartLine(char **str) {
+    int j;
+    for (int i = 0; i < strlen(*str); i++) {
+        if ((*str)[i] != '{' && (*str)[i] != '}') continue;
+        // remove space and \n before
+        for (j = 0; j < i; j++) {
+            if ((*str)[i - j - 1] == ' ' || (*str)[i - j - 1] == '\n' || (*str)[i - j - 1] == '\t') continue;
+            else break;
+        }
+        removeMiddleString(str, 'b', i, j);
+        i -= j;
+        // remove space and \n after
+        for (j = 0; i + j + 1 < strlen(*str); j++) {
+            if ((*str)[i + j + 1] == ' ' || (*str)[i + j + 1] == '\n' || (*str)[i + j + 1] == '\t') continue;
+            else break;
+        }
+        removeMiddleString(str, 'f', i + 1, j);
     }
 }
