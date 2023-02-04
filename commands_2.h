@@ -46,6 +46,8 @@ void init_curser(struct curser *);
 void init_bottom(struct bottom *, char *);
 void insert_mode(struct bottom *, struct content *, struct curser *); // escape = 27
 void find_curser(struct content *, struct curser *, int); // sl if needed
+int switch_command(struct bottom *);
+void save_file(struct bottom *, struct content *);
 void show_content_visual(struct content *, struct curser *); // live state visual mode
 void delete_selection(struct content *, struct curser *); // delete selection mode
 void copy_selection(struct content *, struct curser *); // copy selection mode with 'c'
@@ -148,7 +150,7 @@ void show_bottom(struct bottom *b) {
     attron(COLOR_PAIR(10));
     printw("  %s  ", b->name);
     if (b->save > 1) sprintf(mode, " + ");
-    else sprintf(mode, "   ");
+    else sprintf(mode, " ");
     printw("%s", mode);
     attroff(COLOR_PAIR(10));
     printw("\n%s", b->cb);
@@ -157,6 +159,7 @@ void show_bottom(struct bottom *b) {
 
 void command_mode(struct bottom *b, struct content *p) {
     b->mode = 0;
+    char *q = "(press any key to continue...)";
     sprintf(b->cb, ":");
     char c;
     while (1) {
@@ -168,6 +171,26 @@ void command_mode(struct bottom *b, struct content *p) {
         if (c == 10) break;
         if (c == 127) b->cb[strlen(b->cb) - 1] = '\0';
         else b->cb[strlen(b->cb)] = c;
+    }
+    int a = switch_command(b);
+    if (a == 1) printw("\nNo name yet! Use saveas ");
+    if (a == 2) {
+        save_file(b, p);
+        printw("\nSaved! ");
+    }
+    if (a == -1) {
+        save_file(b, p);
+        sprintf(b->name, "");
+        strcat(b->name, b->cb);
+        removeMiddleString(&b->name, 'f', 0, strlen(":open "));
+        normal_mode(b->name);
+        return;
+    }
+
+    if (0 < a) {
+        printw("%s", q);
+        refresh();
+        getch();
     }
     for (int i = strlen(b->cb); i; i--) b->cb[i - 1] = '\0';
     b->mode = 1;
@@ -239,7 +262,7 @@ void init_content(struct content *p, char *path) {
     }
     p->str = (char *) malloc(SIZE);
     FILE *fp = fopen(path, "r");
-    if (fp == NULL) sprintf(p->str, " ");
+    if (!strcmp(path, "root")) sprintf(p->str, "\n");
     else {
         int size;
         for (size = 0; getc(fp) != EOF; size++);
@@ -259,11 +282,15 @@ void init_curser(struct curser *m) {
 
 void init_bottom(struct bottom *b, char *path) {
     b->cb = (char *) malloc(SIZE);
+    b->name = (char *) malloc(SIZE);
     b->cb[0] = '\0';
     b->mode = 1;
-    b->name = path;
-    if (fopen(path, "r") == NULL) b->save = 3;
-    else b->save = 1;
+    sprintf(b->name, " ");
+    if (!strcmp(path, "root")) b->save = 3;
+    else {
+        b->save = 1;
+        b->name = path;
+    }
 }
 
 void insert_mode(struct bottom *b, struct content *p, struct curser *m) {
@@ -275,7 +302,6 @@ void insert_mode(struct bottom *b, struct content *p, struct curser *m) {
         clear();
         show_content_normal(p, m);
         show_bottom(b);
-        printw("\nline = %i pos = %i", m->line, m->pos);
         refresh();
         c = getch();
         if (c == 27) break;
@@ -290,7 +316,7 @@ void insert_mode(struct bottom *b, struct content *p, struct curser *m) {
         }
         find_curser(p, m, i);
         update_ith_line(p);
-        b->save = 2;
+        if (b->save == 1) b->save = 2;
     }
     b->mode = 1;
     free(s);
@@ -309,4 +335,28 @@ void find_curser(struct content *p, struct curser *m, int i) {
     m->pos = i - j;
     if (m->line < p->sl) p->sl = m->line;
     if (p->sl + N <= m->line) p->sl = m->line - N + 1;
+}
+
+int switch_command(struct bottom *b) {
+    char *cn = (char *) malloc(SIZE);
+    sscanf(b->cb, "%s", cn);
+    if (!strcmp(cn, ":save")) {
+        if (b->save == 3) return 1;
+        return 2;
+    }
+    if (!strcmp(cn, ":saveas")) return 2;
+    if (!strcmp(cn, ":open")) return -1;
+    return 0;
+}
+
+void save_file(struct bottom *b, struct content *p) {
+    b->save = 1;
+    char *cn = (char *) malloc(SIZE);
+    sscanf(b->cb, "%s", cn);
+    if (!strcmp(cn, ":saveas")) {
+        sprintf(b->name, "");
+        strcat(b->name, b->cb);
+        removeMiddleString(&b->name, 'f', 0, strlen(":saveas "));
+    }
+    writeInFile(b->name, p->str);
 }

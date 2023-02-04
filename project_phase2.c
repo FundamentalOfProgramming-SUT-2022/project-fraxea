@@ -10,6 +10,6 @@ int main() {
     init_pair(4, COLOR_BLACK, COLOR_WHITE);
     init_pair(5, COLOR_YELLOW, COLOR_BLACK);
     noecho();
-    normal_mode("root/ali");
+    normal_mode("root");
     return 0;
 }
