@@ -485,7 +485,7 @@ char* findAt_ByWord(char *content, char *find, char *star_f, int at) {
     int **find_all = (int **) malloc(SIZE * sizeof(int *));
     char *output = (char *) malloc(SIZE);
     countString(content, 0, find, 0, star_f, find_all, &count, 0);
-    if (count < at || at < 1) sprintf(output, "-1\n");
+    if (count < at || at < 1) s=(output, "-1\n");
     else sprintf(output, "%i\n", byWord(content, find_all[at - 1][0]));
     free(find_all); return output;
 }

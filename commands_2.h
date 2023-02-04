@@ -46,20 +46,20 @@ void init_curser(struct curser *);
 void init_bottom(struct bottom *, char *);
 void insert_mode(struct bottom *, struct content *, struct curser *); // escape = 27
 void find_curser(struct content *, struct curser *, int); // sl if needed
-int switch_command(struct bottom *);
+int switch_command(struct bottom *); // save and saveas with name
 void save_file(struct bottom *, struct content *);
+void undo_normal(struct bottom *, struct content *, struct curser *); // undo to last saved with 'z'
+
+void auto_indent_normal(struct content *, struct curser *); // auto-indent normal with '='
 void show_content_visual(struct content *, struct curser *); // live state visual mode
 void delete_selection(struct content *, struct curser *); // delete selection mode
 void copy_selection(struct content *, struct curser *); // copy selection mode with 'c'
 void cut_selection(struct content *, struct curser *); // cut selection mode with 'x'
 void paste_normal(struct content *, struct curser *); // paste normal mode with 'v'
-void save_file(struct bottom *, struct content *); // save and saveas with name
 void open_file(struct bottom *, struct content *); // open new and save previous
-void undo_normal(struct bottom *, struct content *); // undo to last saved with 'z'
 void find_h(struct bottom *, struct content *, struct curser *); // live state find '/'
 void go_first_highlight(struct content *, struct curser *); // first highlight with 'n'
 void replace_curser(struct bottom *, struct content *, struct curser *); // replace curser
-void auto_indent_normal(struct content *, struct curser *); // auto-indent normal with '='
 
 
 void update_ith_line(struct content *p) {
@@ -246,8 +246,8 @@ void normal_mode(char *path) {
         if (c == 'a') move_left_curser(&m);
         if (c == ':') command_mode(&b, &p);
         if (c == 'i') insert_mode(&b, &p, &m);
+        if (c == 'z') undo_normal(&b, &p, &m);
         // if (c == '=') auto_indent_normal(&p, &m);
-        // if (c == 'z') undo_normal(&b, &p);
         // if (c == 'v') paste_normal(&p, &m);
     }
 }
@@ -270,6 +270,7 @@ void init_content(struct content *p, char *path) {
         p->str = realloc(p->str, size + 1);
         for (int i = 0; i < size; i++) p->str[i] = getc(fp);
         p->str[size] = '\0';
+        if (!size) sprintf(p->str, "\n");
     }
     fclose(fp);
     update_ith_line(p);
@@ -357,6 +358,16 @@ void save_file(struct bottom *b, struct content *p) {
         sprintf(b->name, "");
         strcat(b->name, b->cb);
         removeMiddleString(&b->name, 'f', 0, strlen(":saveas "));
+        FILE *fp = fopen(b->name, "w");
+        fclose(fp);
     }
+    backup_i(b->name);
     writeInFile(b->name, p->str);
+}
+
+void undo_normal(struct bottom *b, struct content *p, struct curser *m) {
+    goback(b->name);
+    init_bottom(b, b->name);
+    init_content(p, b->name);
+    init_curser(m);
 }
