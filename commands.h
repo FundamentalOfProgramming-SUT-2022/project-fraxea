@@ -189,8 +189,9 @@ int contentFile(char *path, char **str) {
     int size;
     for (size = 0; getc(fp) != EOF; size++);
     rewind(fp);
-    *str = realloc(*str, size);
+    *str = realloc(*str, size + 1);
     for (int i = 0; i < size; i++) (*str)[i] = getc(fp);
+    (*str)[size] = '\0';
     fclose(fp); return 0;
 }
 
