@@ -1,5 +1,4 @@
-#include <ncurses.h>
-#include "commands.h"
+#include "phase1_2.h"
 #define N 14 // max nl
 
 struct curser {
@@ -49,8 +48,8 @@ void find_curser(struct content *, struct curser *, int); // sl if needed
 int switch_command(struct bottom *); // save and saveas with name
 void save_file(struct bottom *, struct content *);
 void undo_normal(struct bottom *, struct content *, struct curser *); // undo to last saved with 'z'
+void auto_indent_normal(struct bottom *, struct content *, struct curser *); // auto-indent normal with '='
 
-void auto_indent_normal(struct content *, struct curser *); // auto-indent normal with '='
 void show_content_visual(struct content *, struct curser *); // live state visual mode
 void delete_selection(struct content *, struct curser *); // delete selection mode
 void copy_selection(struct content *, struct curser *); // copy selection mode with 'c'
@@ -188,7 +187,7 @@ void command_mode(struct bottom *b, struct content *p) {
     }
 
     if (0 < a) {
-        printw("%s", q);
+        printw("\n%s", q);
         refresh();
         getch();
     }
@@ -247,7 +246,7 @@ void normal_mode(char *path) {
         if (c == ':') command_mode(&b, &p);
         if (c == 'i') insert_mode(&b, &p, &m);
         if (c == 'z') undo_normal(&b, &p, &m);
-        // if (c == '=') auto_indent_normal(&p, &m);
+        if (c == '=') auto_indent_normal(&b, &p, &m);
         // if (c == 'v') paste_normal(&p, &m);
     }
 }
@@ -340,14 +339,18 @@ void find_curser(struct content *p, struct curser *m, int i) {
 
 int switch_command(struct bottom *b) {
     char *cn = (char *) malloc(SIZE);
-    sscanf(b->cb, "%s", cn);
-    if (!strcmp(cn, ":save")) {
+    char *output = (char *) malloc(SIZE);
+    sscanf(b->cb, ":%s", cn);
+    if (!strcmp(cn, "save")) {
         if (b->save == 3) return 1;
         return 2;
     }
-    if (!strcmp(cn, ":saveas")) return 2;
-    if (!strcmp(cn, ":open")) return -1;
-    return 0;
+    if (!strcmp(cn, "saveas")) return 2;
+    if (!strcmp(cn, "open")) return -1;
+    b->cb++;
+    b->cb[strlen(b->cb)] = '\0';
+    switchCommand(&b->cb, &output, cn);
+    return 10;
 }
 
 void save_file(struct bottom *b, struct content *p) {
@@ -369,5 +372,13 @@ void undo_normal(struct bottom *b, struct content *p, struct curser *m) {
     goback(b->name);
     init_bottom(b, b->name);
     init_content(p, b->name);
+    init_curser(m);
+}
+
+void auto_indent_normal(struct bottom *b, struct content *p, struct curser *m) {
+    if (curlyBrace(p->str)) return;
+    closingPairs(&p->str);
+    if (b->save == 1) b->save = 2;
+    update_ith_line(p);
     init_curser(m);
 }
