@@ -1,5 +1,57 @@
 #include "errors.h"
-
+void readCommandLine(char *);
+void switchCommand(char **, char **, char *);
+void createFile(char **);
+int stillRemaining(char **, char, char *);
+void cat(char **, char **);
+char* Dastkary(char **, int);
+void insertstr(char **, char **, int);
+int findPosition(int, int, char *);
+int contentFile(char *, char **);
+void writeInFile(char *, char *);
+void writeMiddleString(char **, char *, int);
+int findPath(char **, char *, char);
+void removestr(char **);
+int removeMiddleString(char **, char, int, int);
+void copystr(char **);
+int readMiddleString(char *, char, int, int, char **);
+void cutstr(char **);
+void pastestr(char **);
+int readClipboard(char **);
+int isNew(int **, int);
+int searchString(char *, int, char *, int, char *);
+int countString(char *, int, char *, int, char *, int **, int *, int);
+char* Dastkary2(char **, int, char *);
+void find(char **, char **, int);
+struct features featureOnOff(char **);
+char* makeDecision(char **, char *, char *, char *);
+char* findAt(char *, char *, char *, int);
+char* findAt_ByWord(char *, char *, char *, int);
+char* findCount(char *, char *, char *);
+char* findAll(char *, char *, char *);
+char* findAll_Byword(char *, char *, char *);
+int byWord(char *, int);
+struct features_rep featureOnOffReplace(char **);
+void makeDecisionReplace(char **, char *, char *, char *, char *, char *);
+void replace(char **);
+void replaceAt(char *, char *, char *, int, char *, char *);
+void replaceAll(char *, char *, char *, char *, char *);
+void grep(char **, char **, int);
+int getFeatures(char **);
+char* findPattern(char **, char *, int);
+char* finalGrep(struct grep_pattern *, int, int);
+void backup_i(char *);
+void undo(char **);
+void goback(char *);
+void autoIndent(char **);
+int curlyBrace(char *);
+void closingPairs(char **);
+void removeSpaceStartLine(char **);
+void compare(char **, char **);
+int numLine(char *);
+void findDifference(char *, char *, char **);
+int nextLine(char *);
+void lineDifference(char **, char **, char **, int);
 
 void readCommandLine(char *line) {
     char *output = (char *) malloc(SIZE);
