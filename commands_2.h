@@ -49,17 +49,25 @@ int switch_command(struct bottom *); // save and saveas with name
 void save_file(struct bottom *, struct content *);
 void undo_normal(struct bottom *, struct content *, struct curser *); // undo to last saved with 'z'
 void auto_indent_normal(struct bottom *, struct content *, struct curser *); // auto-indent normal with '='
-
+void selection_mode(struct bottom *, struct content *, struct curser *);
+void copy_selection(struct content *, struct curser *); // copy selection mode with 'c'
 void show_content_visual(struct content *, struct curser *); // live state visual mode
 void delete_selection(struct content *, struct curser *); // delete selection mode
-void copy_selection(struct content *, struct curser *); // copy selection mode with 'c'
 void cut_selection(struct content *, struct curser *); // cut selection mode with 'x'
 void paste_normal(struct content *, struct curser *); // paste normal mode with 'v'
-void open_file(struct bottom *, struct content *); // open new and save previous
+
+
 void find_h(struct bottom *, struct content *, struct curser *); // live state find '/'
 void go_first_highlight(struct content *, struct curser *); // first highlight with 'n'
 void replace_curser(struct bottom *, struct content *, struct curser *); // replace curser
 
+int index_content_A(struct content *p, struct curser *m) {
+    int i = 0;
+    for (int a = 0; a < m->a_line; i++) {
+        if (p->str[i] == '\n') a++;
+    }
+    return i + m->a_pos;
+}
 
 void update_ith_line(struct content *p) {
     int i = 0;
@@ -185,7 +193,6 @@ void command_mode(struct bottom *b, struct content *p) {
         normal_mode(b->name);
         return;
     }
-
     if (0 < a) {
         printw("\n%s", q);
         refresh();
@@ -247,7 +254,8 @@ void normal_mode(char *path) {
         if (c == 'i') insert_mode(&b, &p, &m);
         if (c == 'z') undo_normal(&b, &p, &m);
         if (c == '=') auto_indent_normal(&b, &p, &m);
-        // if (c == 'v') paste_normal(&p, &m);
+        if (c == 'q') selection_mode(&b, &p, &m);
+        if (c == 'v') paste_normal(&p, &m);
     }
 }
 
@@ -350,6 +358,11 @@ int switch_command(struct bottom *b) {
     b->cb++;
     b->cb[strlen(b->cb)] = '\0';
     switchCommand(&b->cb, &output, cn);
+    if (strlen(output)) {
+        FILE *fp = fopen("new file", "w");
+        fwrite(output, 1, strlen(output), fp);
+        normal_mode("new file");
+    }
     return 10;
 }
 
@@ -381,4 +394,104 @@ void auto_indent_normal(struct bottom *b, struct content *p, struct curser *m) {
     if (b->save == 1) b->save = 2;
     update_ith_line(p);
     init_curser(m);
+}
+
+void selection_mode(struct bottom *b, struct content *p, struct curser *m) {
+    char c;
+    b->mode = 3;
+    m->a_line = m->line;
+    m->a_pos = m->pos;
+    while (1) {
+        clear();
+        show_content_visual(p, m);
+        show_bottom(b);
+        refresh();
+        c = getch();
+        if (c == 'w') move_up_curser(p, m);
+        if (c == 's') move_down_curser(p, m);
+        if (c == 'd') move_right_curser(p, m);
+        if (c == 'a') move_left_curser(m);
+        if (c == 'q') break;
+        if (c == 'c') {copy_selection(p, m); break;}
+        if (c == 'x') {cut_selection(p, m); break;}
+        
+    }
+    b->mode = 1;
+}
+
+void show_content_visual(struct content *p, struct curser *m) {
+    int i1a = index_content_A(p, m);
+    int i2 = index_content(p, m);
+    if (i1a >= i2) {
+        for (int i = p->sl; i < p->nl + p->sl; i++) {
+            attron(COLOR_PAIR(5));
+            printw("%4i ", i + 1);
+            attroff(COLOR_PAIR(4));
+            for (int j = 0; j < strlen(p->il[i - p->sl]); j++) {
+                if (i == m->line && j == m->pos) attron(COLOR_PAIR(4));
+                if (i == m->a_line && j == m->a_pos) attroff(COLOR_PAIR(4));
+                printw("%c", p->il[i - p->sl][j]);
+            }
+            printw("\n");
+        }
+    }
+    
+    else {
+        for (int i = p->sl; i < p->nl + p->sl; i++) {
+            attron(COLOR_PAIR(5));
+            printw("%4i ", i + 1);
+            attroff(COLOR_PAIR(4));
+            for (int j = 0; j < strlen(p->il[i - p->sl]); j++) {
+                if (i == m->line && j == m->pos) attroff(COLOR_PAIR(4));
+                if (i == m->a_line && j == m->a_pos) attron(COLOR_PAIR(4));
+                printw("%c", p->il[i - p->sl][j]);
+            }
+            printw("\n");
+        }
+    }
+    
+    
+    for (int i = p->nl; i < N; i++) {
+        attron(COLOR_PAIR(3)); printw("~"); attroff(COLOR_PAIR(3));
+        printw("\n");
+    }
+}
+
+void copy_selection(struct content *p, struct curser *m) {
+    int i1a = index_content_A(p, m);
+    int i2 = index_content(p, m);
+    char *boz = (char *) malloc(SIZE);
+    if (i1a >= i2) {
+        for (int i = i2; i < i1a; i++) boz[i - i2] = p->str[i];
+    }
+    else {
+        for (int i = i1a; i < i2; i++) boz[i - i1a] = p->str[i];
+    }
+    writeInFile("clipboard", boz);
+    update_ith_line(p);
+}
+
+void delete_selection(struct content *p, struct curser *m) {
+    int i1a = index_content_A(p, m);
+    int i2 = index_content(p, m);
+    if (i1a >= i2) removeMiddleString(&p->str, 'f', i2, i1a - i2);
+    else removeMiddleString(&p->str, 'f', i1a, i2 - i1a);
+    update_ith_line(p);
+}
+
+void cut_selection(struct content *p, struct curser *m) {
+    copy_selection(p, m);
+    delete_selection(p, m);
+}
+
+void paste_normal(struct content *p, struct curser *m) {
+    FILE *fp = fopen("clipboard", "r");
+    int size;
+    for (size = 0; getc(fp) != EOF; size++);
+    rewind(fp);
+    char *boz = (char *) malloc(size + 1);
+    for (int i = 0; i < size; i++) boz[i] = getc(fp);
+    fclose(fp);
+    writeMiddleString(&p->str, boz, index_content(p, m));
+    update_ith_line(p);
 }

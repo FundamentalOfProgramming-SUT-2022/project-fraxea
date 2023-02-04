@@ -79,7 +79,7 @@ void switchCommand(char **line, char **output, char *c_n) {
         else if (!strcmp(c_n, "compare")) compare(line, output);
         /*else if ...*/
         else error4();
-    printOutPut(*output);
+    
     /* input $  output # neither -
     √ creatfile -
     √ @insertstr $
@@ -102,7 +102,7 @@ void switchCommand(char **line, char **output, char *c_n) {
 void createFile(char **line) {
     *line += strlen("createfile --file ");
     char *path = (char *) malloc(SIZE);
-    char terminal = '\n';
+    char terminal = ' ';
     if (**line == '"') {
         ++*line;
         terminal = '"';
@@ -119,14 +119,14 @@ int stillRemaining(char **line, char terminal, char *path) {
         path[strlen(path)] = **line;
         ++*line;
         if (**line == '/') return 1;
-        if (**line == terminal || **line == '\n') return 0;
+        if (**line == terminal || **line == ' ') return 0;
     }
 }
 
 void cat(char **line, char **str) {
     *line += strlen("cat --file ");
     char *path = (char *) malloc(SIZE); // address of file
-    if (findPath(line, path, '\n')) return;
+    if (findPath(line, path, ' ')) return;
     if (contentFile(path, str)) return;
     free(path);
 }
@@ -485,7 +485,7 @@ char* findAt_ByWord(char *content, char *find, char *star_f, int at) {
     int **find_all = (int **) malloc(SIZE * sizeof(int *));
     char *output = (char *) malloc(SIZE);
     countString(content, 0, find, 0, star_f, find_all, &count, 0);
-    if (count < at || at < 1) s=(output, "-1\n");
+    if (count < at || at < 1) sprintf(output, "-1\n");
     else sprintf(output, "%i\n", byWord(content, find_all[at - 1][0]));
     free(find_all); return output;
 }
