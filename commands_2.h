@@ -4,9 +4,7 @@
 struct curser {
     int line;
     int pos;
-    int a_line; // line of curser at the beggining of visual mode
-    int a_pos; // pos of curser at the beggining of visual mode
-    int direction; // 1 or -1
+    int direct; // for selection
 };
 
 struct content {
@@ -50,24 +48,17 @@ void save_file(struct bottom *, struct content *);
 void undo_normal(struct bottom *, struct content *, struct curser *); // undo to last saved with 'z'
 void auto_indent_normal(struct bottom *, struct content *, struct curser *); // auto-indent normal with '='
 void selection_mode(struct bottom *, struct content *, struct curser *);
+int selected(struct content *, struct curser *, int, int);
 void copy_selection(struct content *, struct curser *); // copy selection mode with 'c'
 void show_content_visual(struct content *, struct curser *); // live state visual mode
-void delete_selection(struct content *, struct curser *); // delete selection mode
-void cut_selection(struct content *, struct curser *); // cut selection mode with 'x'
+void delete_selection(struct bottom *, struct content *, struct curser *); // delete selection mode
+void cut_selection(struct bottom *, struct content *, struct curser *); // cut selection mode with 'x'
 void paste_normal(struct content *, struct curser *); // paste normal mode with 'v'
 
 
 void find_h(struct bottom *, struct content *, struct curser *); // live state find '/'
 void go_first_highlight(struct content *, struct curser *); // first highlight with 'n'
 void replace_curser(struct bottom *, struct content *, struct curser *); // replace curser
-
-int index_content_A(struct content *p, struct curser *m) {
-    int i = 0;
-    for (int a = 0; a < m->a_line; i++) {
-        if (p->str[i] == '\n') a++;
-    }
-    return i + m->a_pos;
-}
 
 void update_ith_line(struct content *p) {
     int i = 0;
@@ -269,7 +260,7 @@ void init_content(struct content *p, char *path) {
     }
     p->str = (char *) malloc(SIZE);
     FILE *fp = fopen(path, "r");
-    if (!strcmp(path, "root")) sprintf(p->str, "\n");
+    if (!strcmp(path, "zzz")) sprintf(p->str, "\n");
     else {
         int size;
         for (size = 0; getc(fp) != EOF; size++);
@@ -294,7 +285,7 @@ void init_bottom(struct bottom *b, char *path) {
     b->cb[0] = '\0';
     b->mode = 1;
     sprintf(b->name, " ");
-    if (!strcmp(path, "root")) b->save = 3;
+    if (!strcmp(path, "zzz")) b->save = 3;
     else {
         b->save = 1;
         b->name = path;
@@ -399,8 +390,7 @@ void auto_indent_normal(struct bottom *b, struct content *p, struct curser *m) {
 void selection_mode(struct bottom *b, struct content *p, struct curser *m) {
     char c;
     b->mode = 3;
-    m->a_line = m->line;
-    m->a_pos = m->pos;
+    m->direct = index_content(p, m);
     while (1) {
         clear();
         show_content_visual(p, m);
@@ -413,75 +403,58 @@ void selection_mode(struct bottom *b, struct content *p, struct curser *m) {
         if (c == 'a') move_left_curser(m);
         if (c == 'q') break;
         if (c == 'c') {copy_selection(p, m); break;}
-        if (c == 'x') {cut_selection(p, m); break;}
-        
+        if (c == 'x') {cut_selection(b, p, m); break;}
     }
     b->mode = 1;
 }
 
-void show_content_visual(struct content *p, struct curser *m) {
-    int i1a = index_content_A(p, m);
+int selected(struct content *p, struct curser *m, int i, int j) {
     int i2 = index_content(p, m);
-    if (i1a >= i2) {
-        for (int i = p->sl; i < p->nl + p->sl; i++) {
-            attron(COLOR_PAIR(5));
-            printw("%4i ", i + 1);
-            attroff(COLOR_PAIR(4));
-            for (int j = 0; j < strlen(p->il[i - p->sl]); j++) {
-                if (i == m->line && j == m->pos) attron(COLOR_PAIR(4));
-                if (i == m->a_line && j == m->a_pos) attroff(COLOR_PAIR(4));
-                printw("%c", p->il[i - p->sl][j]);
-            }
-            printw("\n");
+    struct curser a;
+    a.line = i;
+    a.pos = j;
+    a.direct = index_content(p, &a);
+    if (i2 <= a.direct && a.direct < m->direct) return 1;
+    if (m->direct <= a.direct && a.direct < i2) return 1;
+    return 0;
+}
+
+void show_content_visual(struct content *p, struct curser *m) {
+    for (int i = p->sl; i < p->nl + p->sl; i++) {
+        attron(COLOR_PAIR(5)); printw("%4i ", i + 1); attroff(COLOR_PAIR(5));
+        for (int j = 0; j < strlen(p->il[i - p->sl]); j++) {
+            if (selected(p, m, i, j)) attron(COLOR_PAIR(6));
+            printw("%c", p->il[i - p->sl][j]);
+            if (selected(p, m, i, j)) attroff(COLOR_PAIR(6));
         }
-    }
-    
-    else {
-        for (int i = p->sl; i < p->nl + p->sl; i++) {
-            attron(COLOR_PAIR(5));
-            printw("%4i ", i + 1);
-            attroff(COLOR_PAIR(4));
-            for (int j = 0; j < strlen(p->il[i - p->sl]); j++) {
-                if (i == m->line && j == m->pos) attroff(COLOR_PAIR(4));
-                if (i == m->a_line && j == m->a_pos) attron(COLOR_PAIR(4));
-                printw("%c", p->il[i - p->sl][j]);
-            }
-            printw("\n");
-        }
-    }
-    
-    
-    for (int i = p->nl; i < N; i++) {
-        attron(COLOR_PAIR(3)); printw("~"); attroff(COLOR_PAIR(3));
         printw("\n");
     }
 }
 
 void copy_selection(struct content *p, struct curser *m) {
-    int i1a = index_content_A(p, m);
     int i2 = index_content(p, m);
     char *boz = (char *) malloc(SIZE);
-    if (i1a >= i2) {
-        for (int i = i2; i < i1a; i++) boz[i - i2] = p->str[i];
+    if (m->direct >= i2) {
+        for (int i = i2; i < m->direct; i++) boz[i - i2] = p->str[i];
     }
     else {
-        for (int i = i1a; i < i2; i++) boz[i - i1a] = p->str[i];
+        for (int i = m->direct; i < i2; i++) boz[i - m->direct] = p->str[i];
     }
     writeInFile("clipboard", boz);
     update_ith_line(p);
 }
 
-void delete_selection(struct content *p, struct curser *m) {
-    int i1a = index_content_A(p, m);
+void delete_selection(struct bottom *b, struct content *p, struct curser *m) {
     int i2 = index_content(p, m);
-    if (i1a >= i2) removeMiddleString(&p->str, 'f', i2, i1a - i2);
-    else removeMiddleString(&p->str, 'f', i1a, i2 - i1a);
+    if (m->direct >= i2) removeMiddleString(&p->str, 'f', i2, m->direct - i2);
+    else removeMiddleString(&p->str, 'f', m->direct, i2 - m->direct);
     update_ith_line(p);
+    if (b->save == 1) b->save = 2;
 }
 
-void cut_selection(struct content *p, struct curser *m) {
+void cut_selection(struct bottom *b, struct content *p, struct curser *m) {
     copy_selection(p, m);
-    delete_selection(p, m);
+    delete_selection(b, p, m);
 }
 
 void paste_normal(struct content *p, struct curser *m) {

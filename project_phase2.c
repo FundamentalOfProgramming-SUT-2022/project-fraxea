@@ -9,7 +9,8 @@ int main() {
     init_pair(3, COLOR_MAGENTA, COLOR_BLACK);
     init_pair(4, COLOR_BLACK, COLOR_WHITE);
     init_pair(5, COLOR_YELLOW, COLOR_BLACK);
+    init_pair(6, COLOR_BLACK, COLOR_YELLOW);
     noecho();
-    normal_mode("root");
+    normal_mode("root/ali");
     return 0;
 }
