@@ -22,7 +22,8 @@ struct bottom {
 };
 
 struct highlight {
-    // for find highlight
+    char **s_s;
+    int cnt;
 };
 
 void update_ith_line(struct content *); // using content to update 12 lines
@@ -43,8 +44,10 @@ void init_curser(struct curser *);
 void init_bottom(struct bottom *, char *);
 void insert_mode(struct bottom *, struct content *, struct curser *); // escape = 27
 void find_curser(struct content *, struct curser *, int); // sl if needed
-int switch_command(struct bottom *); // save and saveas with name
+void switch_command(struct bottom *, struct content *); // save and saveas with name
 void save_file(struct bottom *, struct content *);
+void save_file_as(struct bottom *, struct content *);
+void open_file(struct bottom *, struct content *);
 void undo_normal(struct bottom *, struct content *, struct curser *); // undo to last saved with 'z'
 void auto_indent_normal(struct bottom *, struct content *, struct curser *); // auto-indent normal with '='
 void selection_mode(struct bottom *, struct content *, struct curser *);
@@ -54,10 +57,11 @@ void show_content_visual(struct content *, struct curser *); // live state visua
 void delete_selection(struct bottom *, struct content *, struct curser *); // delete selection mode
 void cut_selection(struct bottom *, struct content *, struct curser *); // cut selection mode with 'x'
 void paste_normal(struct content *, struct curser *); // paste normal mode with 'v'
-
-
 void find_h(struct bottom *, struct content *, struct curser *); // live state find '/'
-void go_first_highlight(struct content *, struct curser *); // first highlight with 'n'
+void go_first_highlight(struct content *, struct curser *, struct highlight); // first highlight with 'n'
+void show_highlight(struct content *, struct curser *, struct highlight);
+int in_highlight(struct content *, struct curser *, struct highlight, int, int);
+
 void replace_curser(struct bottom *, struct content *, struct curser *); // replace curser
 
 void update_ith_line(struct content *p) {
@@ -157,7 +161,6 @@ void show_bottom(struct bottom *b) {
 
 void command_mode(struct bottom *b, struct content *p) {
     b->mode = 0;
-    char *q = "(press any key to continue...)";
     sprintf(b->cb, ":");
     char c;
     while (1) {
@@ -170,25 +173,10 @@ void command_mode(struct bottom *b, struct content *p) {
         if (c == 127) b->cb[strlen(b->cb) - 1] = '\0';
         else b->cb[strlen(b->cb)] = c;
     }
-    int a = switch_command(b);
-    if (a == 1) printw("\nNo name yet! Use saveas ");
-    if (a == 2) {
-        save_file(b, p);
-        printw("\nSaved! ");
-    }
-    if (a == -1) {
-        save_file(b, p);
-        sprintf(b->name, "");
-        strcat(b->name, b->cb);
-        removeMiddleString(&b->name, 'f', 0, strlen(":open "));
-        normal_mode(b->name);
-        return;
-    }
-    if (0 < a) {
-        printw("\n%s", q);
-        refresh();
-        getch();
-    }
+    switch_command(b, p);
+    printw("(press any key to continue...)\n");
+    refresh();
+    getch();
     for (int i = strlen(b->cb); i; i--) b->cb[i - 1] = '\0';
     b->mode = 1;
 }
@@ -224,12 +212,12 @@ void show_content_normal(struct content *p, struct curser *m) {
 }
 
 void normal_mode(char *path) {
-    struct bottom b;
-    init_bottom(&b, path);
     struct content p;
     init_content(&p, path);
     struct curser m;
     init_curser(&m);
+    struct bottom b;
+    init_bottom(&b, path);
     char c;
     while (1) {
         clear();
@@ -247,6 +235,7 @@ void normal_mode(char *path) {
         if (c == '=') auto_indent_normal(&b, &p, &m);
         if (c == 'q') selection_mode(&b, &p, &m);
         if (c == 'v') paste_normal(&p, &m);
+        if (c == '/') find_h(&b, &p, &m);
     }
 }
 
@@ -260,16 +249,13 @@ void init_content(struct content *p, char *path) {
     }
     p->str = (char *) malloc(SIZE);
     FILE *fp = fopen(path, "r");
-    if (!strcmp(path, "zzz")) sprintf(p->str, "\n");
-    else {
-        int size;
-        for (size = 0; getc(fp) != EOF; size++);
-        rewind(fp);
-        p->str = realloc(p->str, size + 1);
-        for (int i = 0; i < size; i++) p->str[i] = getc(fp);
-        p->str[size] = '\0';
-        if (!size) sprintf(p->str, "\n");
-    }
+    int size;
+    for (size = 0; getc(fp) != EOF; size++);
+    rewind(fp);
+    p->str = realloc(p->str, size + SIZE);
+    for (int i = 0; i < size; i++) p->str[i] = getc(fp);
+    p->str[size] = '\0';
+    if (!size) sprintf(p->str, "\n");
     fclose(fp);
     update_ith_line(p);
 }
@@ -284,12 +270,9 @@ void init_bottom(struct bottom *b, char *path) {
     b->name = (char *) malloc(SIZE);
     b->cb[0] = '\0';
     b->mode = 1;
-    sprintf(b->name, " ");
-    if (!strcmp(path, "zzz")) b->save = 3;
-    else {
-        b->save = 1;
-        b->name = path;
-    }
+    sprintf(b->name, "%s", path);
+    if (!strcmp(b->name, " ")) b->save = 3;
+    else b->save = 1;
 }
 
 void insert_mode(struct bottom *b, struct content *p, struct curser *m) {
@@ -336,40 +319,51 @@ void find_curser(struct content *p, struct curser *m, int i) {
     if (p->sl + N <= m->line) p->sl = m->line - N + 1;
 }
 
-int switch_command(struct bottom *b) {
+void switch_command(struct bottom *b, struct content *p) {
     char *cn = (char *) malloc(SIZE);
     char *output = (char *) malloc(SIZE);
     sscanf(b->cb, ":%s", cn);
-    if (!strcmp(cn, "save")) {
-        if (b->save == 3) return 1;
-        return 2;
-    }
-    if (!strcmp(cn, "saveas")) return 2;
-    if (!strcmp(cn, "open")) return -1;
+    if (!strcmp(cn, "save")) {save_file(b, p); return;}
+    if (!strcmp(cn, "saveas")) {save_file_as(b, p); return;}
+    if (!strcmp(cn, "open")) {open_file(b, p); return;}
     b->cb++;
-    b->cb[strlen(b->cb)] = '\0';
     switchCommand(&b->cb, &output, cn);
     if (strlen(output)) {
-        FILE *fp = fopen("new file", "w");
+        FILE *fp = fopen(" ", "w");
         fwrite(output, 1, strlen(output), fp);
-        normal_mode("new file");
+        fclose(fp);
+        normal_mode(" ");
     }
-    return 10;
 }
 
 void save_file(struct bottom *b, struct content *p) {
-    b->save = 1;
-    char *cn = (char *) malloc(SIZE);
-    sscanf(b->cb, "%s", cn);
-    if (!strcmp(cn, ":saveas")) {
-        sprintf(b->name, "");
-        strcat(b->name, b->cb);
-        removeMiddleString(&b->name, 'f', 0, strlen(":saveas "));
-        FILE *fp = fopen(b->name, "w");
-        fclose(fp);
+    if (b->save == 3) {
+        printw("\nTake a name for file! ");
+        return;
     }
     backup_i(b->name);
     writeInFile(b->name, p->str);
+    b->save = 1;
+    printw("\nSaved! ");
+}
+
+void save_file_as(struct bottom *b, struct content *p) {
+    b->cb += strlen(":saveas ");
+    sprintf(b->name, "%s", b->cb);
+    fopen(b->name, "w");
+    backup_i(b->name);
+    writeInFile(b->name, p->str);
+    b->save = 1;
+    printw("\nSaved! ");
+}
+
+void open_file(struct bottom *b, struct content *p) {
+    b->cb += strlen(":open ");
+    fopen(b->name, "w");
+    backup_i(b->name);
+    writeInFile(b->name, p->str);
+    if (fopen(b->cb, "r") == NULL) printw("\nFile doesn't exist! ");
+    else normal_mode(b->cb);
 }
 
 void undo_normal(struct bottom *b, struct content *p, struct curser *m) {
@@ -429,6 +423,10 @@ void show_content_visual(struct content *p, struct curser *m) {
         }
         printw("\n");
     }
+    for (int i = p->nl; i < N; i++) {
+        attron(COLOR_PAIR(3)); printw("~"); attroff(COLOR_PAIR(3));
+        printw("\n");
+    }
 }
 
 void copy_selection(struct content *p, struct curser *m) {
@@ -467,4 +465,60 @@ void paste_normal(struct content *p, struct curser *m) {
     fclose(fp);
     writeMiddleString(&p->str, boz, index_content(p, m));
     update_ith_line(p);
+}
+
+void find_h(struct bottom *b, struct content *p, struct curser *m) {
+    struct highlight h;
+    h.cnt = 0;
+    h.s_s = (char **) malloc(SIZE * sizeof(char *));
+    countString(p->str, 0, b->cb + 1, 0, b->cb + 1, h.s_s, &h.cnt, 0);
+    if (h.cnt) while (1) {
+        clear();
+        show_highlight(p, m, h);
+        show_bottom(b);
+        refresh();
+        if (getch() != 'n');
+        go_first_highlight(p, m, h);
+    }
+    else printw("\nNothing found! ");
+}
+
+void go_first_highlight(struct content *p, struct curser *m, struct highlight h) {
+    m->line = 0;
+    for (int i = 0; i < h.s_s[0][0]; i++) if (p->str[i] == '\n') m->line++;
+    int i = 0;
+    for (int a = 0; a < m->line; i++) if (p->str[i] == '\n') a++;
+    m->pos = h.s_s[0][0] - i;
+    i = 0;
+    p->sl = m->line;
+    for (int a = 0; a < strlen(p->str); a++) if (p->str[a] == '\n') i++;
+    if (i - p->sl >= N) p->nl = N;
+    else p->nl = i - p->sl;
+}
+
+void show_highlight(struct content *p, struct curser *m, struct highlight h) {
+    for (int i = p->sl; i < p->nl + p->sl; i++) {
+        attron(COLOR_PAIR(5)); printw("%4i ", i + 1); attroff(COLOR_PAIR(5));
+        for (int j = 0; j < strlen(p->il[i - p->sl]); j++) {
+            if (in_highlight(p, m, h, i, j)) attron(COLOR_PAIR(7));
+            printw("%c", p->il[i - p->sl][j]);
+            if (in_highlight(p, m, h, i, j)) attroff(COLOR_PAIR(7));
+        }
+        printw("\n");
+    }
+    for (int i = p->nl; i < N; i++) {
+        attron(COLOR_PAIR(3)); printw("~"); attroff(COLOR_PAIR(3));
+        printw("\n");
+    }
+}
+
+int in_highlight(struct content *p, struct curser *m, struct highlight h, int i, int j) {
+    struct curser y;
+    y.line = i;
+    y.pos = j;
+    y.direct = index_content(p, &y);
+    for (int x = 0; x < h.cnt; i++) {
+        if (h.s_s[x][0] <= y.direct && y.direct <= h.s_s[x][1]) return 1;
+    }
+    return 0;
 }

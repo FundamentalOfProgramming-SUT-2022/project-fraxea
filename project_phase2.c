@@ -10,7 +10,10 @@ int main() {
     init_pair(4, COLOR_BLACK, COLOR_WHITE);
     init_pair(5, COLOR_YELLOW, COLOR_BLACK);
     init_pair(6, COLOR_BLACK, COLOR_YELLOW);
+    init_pair(7, COLOR_BLACK, COLOR_MAGENTA);
     noecho();
-    normal_mode("root/ali");
+    FILE *fp = fopen(" ", "w");
+    fclose(fp);
+    normal_mode(" ");
     return 0;
 }

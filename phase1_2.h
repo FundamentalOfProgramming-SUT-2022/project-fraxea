@@ -63,40 +63,21 @@ void readCommandLine(char *line) {
 
 void switchCommand(char **line, char **output, char *c_n) {
     int armin = 0;
-    /*while (line[0] != '\0')*/
-        if (!strcmp(c_n, "createfile")) createFile(line);
-        else if (!strcmp(c_n, "cat")) cat(line, output);
-        else if (!strcmp(c_n, "insertstr")) {insertstr(line, output, armin); return;}
-        else if (!strcmp(c_n, "removestr")) removestr(line);
-        else if (!strcmp(c_n, "copystr")) copystr(line);
-        else if (!strcmp(c_n, "cutstr")) cutstr(line);
-        else if (!strcmp(c_n, "pastestr")) pastestr(line);
-        else if (!strcmp(c_n, "find")) find(line, output, armin);
-        else if (!strcmp(c_n, "replace")) replace(line);
-        else if (!strcmp(c_n, "grep")) grep(line, output, armin);
-        else if (!strcmp(c_n, "undo")) undo(line);
-        else if (!strcmp(c_n, "auto-indent")) autoIndent(line);
-        else if (!strcmp(c_n, "compare")) compare(line, output);
-        /*else if ...*/
-        else error4();
-    
-    /* input $  output # neither -
-    √ creatfile -
-    √ @insertstr $
-    √ cat #
-    √ @removestr -
-    √ copystr -
-    √ @cutstr -
-    √ @pastetr -
-    √ find $ #
-    √ @replace -
-    √ grep $ #
-    √ undo @
-    √ auto -
-    √ compare #
-    tree #
-    !!!armqn
-    */
+    if (!strcmp(c_n, "createfile")) createFile(line);
+    else if (!strcmp(c_n, "cat")) cat(line, output);
+    else if (!strcmp(c_n, "insertstr")) insertstr(line, output, armin);
+    else if (!strcmp(c_n, "removestr")) removestr(line);
+    else if (!strcmp(c_n, "copystr")) copystr(line);
+    else if (!strcmp(c_n, "cutstr")) cutstr(line);
+    else if (!strcmp(c_n, "pastestr")) pastestr(line);
+    else if (!strcmp(c_n, "find")) find(line, output, armin);
+    else if (!strcmp(c_n, "replace")) replace(line);
+    else if (!strcmp(c_n, "grep")) grep(line, output, armin);
+    else if (!strcmp(c_n, "undo")) undo(line);
+    else if (!strcmp(c_n, "auto-indent")) autoIndent(line);
+    else if (!strcmp(c_n, "compare")) compare(line, output);
+    /*else if ...*/
+    else error4();
 }
 
 void createFile(char **line) {
