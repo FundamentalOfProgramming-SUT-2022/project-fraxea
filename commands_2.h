@@ -22,7 +22,7 @@ struct bottom {
 };
 
 struct highlight {
-    char **s_s;
+    int **s_s;
     int cnt;
 };
 
@@ -468,19 +468,32 @@ void paste_normal(struct content *p, struct curser *m) {
 }
 
 void find_h(struct bottom *b, struct content *p, struct curser *m) {
+    sprintf(b->cb, "/");
+    char c;
+    while (1) {
+        clear();
+        show_content(p);
+        show_bottom(b);
+        refresh();
+        c = getch();
+        if (c == 10) break;
+        if (c == 127) b->cb[strlen(b->cb) - 1] = '\0';
+        else b->cb[strlen(b->cb)] = c;
+    }
     struct highlight h;
     h.cnt = 0;
-    h.s_s = (char **) malloc(SIZE * sizeof(char *));
+    h.s_s = (int **) malloc(SIZE * sizeof(int *));
     countString(p->str, 0, b->cb + 1, 0, b->cb + 1, h.s_s, &h.cnt, 0);
     if (h.cnt) while (1) {
         clear();
         show_highlight(p, m, h);
         show_bottom(b);
         refresh();
-        if (getch() != 'n');
+        if (getch() != 'n') break;
         go_first_highlight(p, m, h);
     }
     else printw("\nNothing found! ");
+    for (int i = strlen(b->cb); i; i--) b->cb[i - 1] = '\0';
 }
 
 void go_first_highlight(struct content *p, struct curser *m, struct highlight h) {
