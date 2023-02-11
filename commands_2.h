@@ -35,7 +35,7 @@ void move_down_curser(struct content *, struct curser *); // move down with 's'
 void move_right_curser(struct content *, struct curser *); // move right with 'd'
 void move_left_curser(struct curser *); // move left with 'a'
 void show_bottom(struct bottom *); // show the live state of bottoom
-void command_mode(struct bottom *, struct content *); // read command first with ':'
+void command_mode(struct bottom *, struct content *, struct curser *); // read command first with ':'
 void show_content(struct content *); // used in command mode
 void show_content_normal(struct content *, struct curser *); // live state normal mode
 void normal_mode(char *); // ready to get shortcut keys and moving
@@ -44,7 +44,7 @@ void init_curser(struct curser *);
 void init_bottom(struct bottom *, char *);
 void insert_mode(struct bottom *, struct content *, struct curser *); // escape = 27
 void find_curser(struct content *, struct curser *, int); // sl if needed
-void switch_command(struct bottom *, struct content *); // save and saveas with name
+void switch_command(struct bottom *, struct content *, struct curser *); // save and saveas with name
 void save_file(struct bottom *, struct content *);
 void save_file_as(struct bottom *, struct content *);
 void open_file(struct bottom *, struct content *);
@@ -61,8 +61,8 @@ void find_h(struct bottom *, struct content *, struct curser *); // live state f
 void go_first_highlight(struct content *, struct curser *, struct highlight); // first highlight with 'n'
 void show_highlight(struct content *, struct curser *, struct highlight);
 int in_highlight(struct content *, struct curser *, struct highlight, int, int);
-
 void replace_curser(struct bottom *, struct content *, struct curser *); // replace curser
+
 
 void update_ith_line(struct content *p) {
     int i = 0;
@@ -159,7 +159,7 @@ void show_bottom(struct bottom *b) {
     free(mode);
 }
 
-void command_mode(struct bottom *b, struct content *p) {
+void command_mode(struct bottom *b, struct content *p, struct curser *m) {
     b->mode = 0;
     sprintf(b->cb, ":");
     char c;
@@ -173,7 +173,7 @@ void command_mode(struct bottom *b, struct content *p) {
         if (c == 127) b->cb[strlen(b->cb) - 1] = '\0';
         else b->cb[strlen(b->cb)] = c;
     }
-    switch_command(b, p);
+    switch_command(b, p, m);
     printw("(press any key to continue...)\n");
     refresh();
     getch();
@@ -229,7 +229,7 @@ void normal_mode(char *path) {
         if (c == 's') move_down_curser(&p, &m);
         if (c == 'd') move_right_curser(&p, &m);
         if (c == 'a') move_left_curser(&m);
-        if (c == ':') command_mode(&b, &p);
+        if (c == ':') command_mode(&b, &p, &m);
         if (c == 'i') insert_mode(&b, &p, &m);
         if (c == 'z') undo_normal(&b, &p, &m);
         if (c == '=') auto_indent_normal(&b, &p, &m);
@@ -319,13 +319,14 @@ void find_curser(struct content *p, struct curser *m, int i) {
     if (p->sl + N <= m->line) p->sl = m->line - N + 1;
 }
 
-void switch_command(struct bottom *b, struct content *p) {
+void switch_command(struct bottom *b, struct content *p, struct curser *m) {
     char *cn = (char *) malloc(SIZE);
     char *output = (char *) malloc(SIZE);
     sscanf(b->cb, ":%s", cn);
     if (!strcmp(cn, "save")) {save_file(b, p); return;}
     if (!strcmp(cn, "saveas")) {save_file_as(b, p); return;}
     if (!strcmp(cn, "open")) {open_file(b, p); return;}
+    if (!strcmp(cn, "")) {replace_curser(b, p, m); return;}
     b->cb++;
     switchCommand(&b->cb, &output, cn);
     if (strlen(output)) {
@@ -484,6 +485,7 @@ void find_h(struct bottom *b, struct content *p, struct curser *m) {
     h.cnt = 0;
     h.s_s = (int **) malloc(SIZE * sizeof(int *));
     countString(p->str, 0, b->cb + 1, 0, b->cb + 1, h.s_s, &h.cnt, 0);
+    printw("%i", h.cnt); refresh();
     if (h.cnt) while (1) {
         clear();
         show_highlight(p, m, h);
@@ -492,7 +494,7 @@ void find_h(struct bottom *b, struct content *p, struct curser *m) {
         if (getch() != 'n') break;
         go_first_highlight(p, m, h);
     }
-    else printw("\nNothing found! ");
+    else {printw("\nNothing found! "); getch();}
     for (int i = strlen(b->cb); i; i--) b->cb[i - 1] = '\0';
 }
 
@@ -507,6 +509,7 @@ void go_first_highlight(struct content *p, struct curser *m, struct highlight h)
     for (int a = 0; a < strlen(p->str); a++) if (p->str[a] == '\n') i++;
     if (i - p->sl >= N) p->nl = N;
     else p->nl = i - p->sl;
+    update_ith_line(p);
 }
 
 void show_highlight(struct content *p, struct curser *m, struct highlight h) {
@@ -530,8 +533,13 @@ int in_highlight(struct content *p, struct curser *m, struct highlight h, int i,
     y.line = i;
     y.pos = j;
     y.direct = index_content(p, &y);
-    for (int x = 0; x < h.cnt; i++) {
-        if (h.s_s[x][0] <= y.direct && y.direct <= h.s_s[x][1]) return 1;
+    for (int x = 0; x < h.cnt; x++) {
+        if (h.s_s[x][0] <= y.direct && y.direct < h.s_s[x][1]) return 1;
     }
     return 0;
 }
+
+void replace_curser(struct bottom *b, struct content *p, struct curser *m) {
+
+}
+
